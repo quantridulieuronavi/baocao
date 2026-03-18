@@ -495,28 +495,6 @@ function scoreChip(s){return s>=80?'chip-good':s>=50?'chip-mid':'chip-bad'}
 /* ════════════════════════════════
    GOOGLE SIGN-IN
    ════════════════════════════════ */
-function signInWithGoogle(){
-  /**
-   * TRIỂN KHAI THỰC TẾ:
-   * 1. Vào console.cloud.google.com
-   * 2. Tạo project → APIs & Services → Credentials → Create OAuth 2.0 Client ID
-   * 3. Application type: Web application
-   * 4. Authorized origins: https://yourdomain.com
-   * 5. Thay GOOGLE_CLIENT_ID ở đầu file
-   * 6. Bỏ comment đoạn code dưới
-   */
-
-  // google.accounts.id.initialize({
-  //   client_id: GOOGLE_CLIENT_ID,
-  //   callback: handleGoogleLogin,
-  //   auto_select: false,
-  // });
-  // google.accounts.id.prompt();
-
-  // DEMO MODE — hiện thông báo
-  alert('🔧 Google Sign-In cần cấu hình GOOGLE_CLIENT_ID.\n\nTrong khi chờ deploy thật, hãy dùng tài khoản Demo bên dưới để trải nghiệm.\n\nXem hướng dẫn chi tiết trong tab "Hướng dẫn triển khai".');
-}
-
 function handleGoogleLogin(response){
   // Decode JWT payload từ Google
   const payload = JSON.parse(atob(response.credential.split('.')[1]));
@@ -612,7 +590,6 @@ function getNavItems(){
     items.push({id:'vehicles',icon:'🚗',label:'Danh sách xe'});
   }
   if(l==='ns') items.push({id:'hr',icon:'👤',label:'Nhân viên'});
-  items.push({id:'guide',icon:'📖',label:'Hướng dẫn'});
   return items;
 }
 
@@ -1234,106 +1211,6 @@ function delItem(type,idx){
   save();if(type==='cus')renderCustomers();else renderVehicles();
 }
 
-/* ════════════════════════════════
-   PANEL: HƯỚNG DẪN
-   ════════════════════════════════ */
-function renderGuide(){
-  document.getElementById('p-guide').innerHTML=`
-    <div class="ph"><div class="ph-l"><div class="ph-title">Hướng dẫn triển khai</div><div class="ph-sub">Deploy app lên web thật với Google Login + lưu dữ liệu Google Sheets</div></div></div>
-
-    <div class="card"><div class="card-title">🗄️ Dữ liệu được lưu ở đâu?</div>
-      <p style="margin-bottom:12px;line-height:1.7;color:var(--g700)">App này hiện dùng <strong>localStorage</strong> — dữ liệu lưu ngay trong trình duyệt của từng máy. Khi triển khai thật, có 2 lựa chọn phù hợp nhất vì đang dùng Google:</p>
-      <div class="g2">
-        <div style="padding:16px;background:var(--greenl);border-radius:var(--rsm);border:1px solid #a7f3d0">
-          <div style="font-size:14px;font-weight:700;color:var(--green);margin-bottom:6px">✅ Khuyến nghị: Google Sheets</div>
-          <ul style="font-size:13px;color:var(--g700);line-height:1.8;padding-left:18px">
-            <li>Miễn phí hoàn toàn</li>
-            <li>Quản lý đọc trực tiếp trên Sheets</li>
-            <li>Kết nối qua Google Apps Script (miễn phí)</li>
-            <li>Export Excel sẵn có</li>
-            <li>Phù hợp đội ngũ &lt;50 người</li>
-          </ul>
-        </div>
-        <div style="padding:16px;background:var(--bluel);border-radius:var(--rsm);border:1px solid #bfdbfe">
-          <div style="font-size:14px;font-weight:700;color:var(--blue);margin-bottom:6px">🔷 Nâng cao: Firebase</div>
-          <ul style="font-size:13px;color:var(--g700);line-height:1.8;padding-left:18px">
-            <li>Real-time sync mọi thiết bị</li>
-            <li>Miễn phí đến 50K reads/ngày</li>
-            <li>Cùng hệ sinh thái Google</li>
-            <li>Cần lập trình viên setup</li>
-            <li>Phù hợp đội ngũ lớn hơn</li>
-          </ul>
-        </div>
-      </div>
-    </div>
-
-    <div class="card"><div class="card-title">🔐 Bước 1 — Cài Google Login</div>
-      <ol style="font-size:13px;line-height:2;color:var(--g700);padding-left:20px">
-        <li>Vào <strong>console.cloud.google.com</strong> → Tạo project mới</li>
-        <li>APIs & Services → OAuth consent screen → External → Điền tên app, logo</li>
-        <li>Credentials → Create Credentials → OAuth 2.0 Client ID → Web application</li>
-        <li>Authorized JavaScript origins: thêm URL website của bạn (VD: <code style="background:var(--g100);padding:1px 6px;border-radius:3px">https://baocao.congty.com</code>)</li>
-        <li>Copy <strong>Client ID</strong> → Thay vào dòng đầu file HTML: <code style="background:var(--g100);padding:1px 6px;border-radius:3px">const GOOGLE_CLIENT_ID = 'xxx.apps.googleusercontent.com'</code></li>
-        <li>Bỏ comment đoạn <code style="background:var(--g100);padding:1px 6px;border-radius:3px">signInWithGoogle()</code> trong file</li>
-      </ol>
-    </div>
-
-    <div class="card"><div class="card-title">📊 Bước 2 — Kết nối Google Sheets (qua Apps Script)</div>
-      <ol style="font-size:13px;line-height:2;color:var(--g700);padding-left:20px">
-        <li>Tạo Google Spreadsheet mới → đặt tên "Báo cáo công việc"</li>
-        <li>Tạo 4 sheet: <strong>NhanVien, BaoCao_NT, BaoCao_VT, KhachHang_Xe</strong></li>
-        <li>Trong Spreadsheet → Extensions → Apps Script → Paste code API (liên hệ lập trình viên)</li>
-        <li>Deploy as Web App → Anyone → Copy Web App URL</li>
-        <li>Thay <code style="background:var(--g100);padding:1px 6px;border-radius:3px">SHEET_API_URL</code> trong file HTML</li>
-        <li>Thay các hàm <code style="background:var(--g100);padding:1px 6px;border-radius:3px">save()</code> và <code style="background:var(--g100);padding:1px 6px;border-radius:3px">loadData()</code> bằng <code style="background:var(--g100);padding:1px 6px;border-radius:3px">fetch()</code> đến Apps Script</li>
-      </ol>
-    </div>
-
-    <div class="card"><div class="card-title">🌐 Bước 3 — Đưa app lên web</div>
-      <div class="g2">
-        <div style="padding:14px;background:var(--g50);border-radius:var(--rsm);border:1px solid var(--g200)">
-          <div style="font-weight:700;margin-bottom:6px;font-size:13px">GitHub Pages (Miễn phí)</div>
-          <p style="font-size:12px;color:var(--g600);line-height:1.6">Upload file HTML lên GitHub repo → Settings → Pages → Deploy. Phù hợp khi không có server.</p>
-        </div>
-        <div style="padding:14px;background:var(--g50);border-radius:var(--rsm);border:1px solid var(--g200)">
-          <div style="font-weight:700;margin-bottom:6px;font-size:13px">VPS / Hosting (~100K/tháng)</div>
-          <p style="font-size:12px;color:var(--g600);line-height:1.6">Đặt file HTML vào thư mục public của Nginx/Apache. Dùng tên miền công ty để dễ nhớ.</p>
-        </div>
-      </div>
-    </div>
-
-    <div class="card"><div class="card-title">🖨️ In / Xuất PDF cuối tuần</div>
-      <p style="font-size:13px;color:var(--g700);line-height:1.7">Nhấn nút <strong>"In / Xuất PDF"</strong> ở góc trên phải của từng trang báo cáo. Trong hộp thoại in:</p>
-      <ul style="font-size:13px;color:var(--g700);line-height:1.8;padding-left:18px;margin-top:8px">
-        <li>Chrome/Edge: Chọn <strong>Save as PDF</strong> trong phần Destination</li>
-        <li>Khổ giấy A4, layout Portrait cho tốt nhất</li>
-        <li>Lọc theo ngày trước khi in để chỉ in báo cáo tuần đó</li>
-        <li>Quản lý có thể in cả phòng, Kế Toán TH in toàn công ty</li>
-      </ul>
-    </div>
-  `;
-}
-
-/* ════════════════════════════════
-   MODAL UTILS
-   ════════════════════════════════ */
-function closeModal(id){document.getElementById(id).classList.add('hidden');evalTarget=null}
-function showE(el,msg){el.textContent=msg;el.classList.remove('hidden')}
-document.querySelectorAll('.moverlay').forEach(el=>el.addEventListener('click',e=>{if(e.target===el)el.classList.add('hidden')}));
-
-/* ════════════════════════════════
-   PWA
-   ════════════════════════════════ */
-if('serviceWorker' in navigator){
-  const sw=`const C='bcv4';self.addEventListener('install',e=>e.waitUntil(caches.open(C).then(c=>c.addAll(['.']))));self.addEventListener('fetch',e=>e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request))))`;
-  navigator.serviceWorker.register(URL.createObjectURL(new Blob([sw],{type:'application/javascript'}))).catch(()=>{});
-}
-const mf={name:'Báo cáo công việc',short_name:'Báo cáo',start_url:'.',display:'standalone',background_color:'#fff',theme_color:'#1e40af'};
-const ml=document.createElement('link');ml.rel='manifest';ml.href=URL.createObjectURL(new Blob([JSON.stringify(mf)],{type:'application/json'}));document.head.appendChild(ml);
-
-/* ════════════════════════════════
-   INIT
-   ════════════════════════════════ */
 buildDemoList();
 updateScore();
 </script>
