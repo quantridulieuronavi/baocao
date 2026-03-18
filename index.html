@@ -323,6 +323,31 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;heigh
   <div class="mob-nb hidden" id="mob-nav"><div class="mob-inner" id="mob-inner"></div></div>
 </div>
 
+<!-- ═══════ MODAL: THÊM NHIỀU ═══════ -->
+<div id="bulk-modal" class="moverlay hidden">
+<div class="mbox" style="max-width:560px">
+  <div class="mhead">
+    <span class="mtitle" id="bulk-modal-title">Thêm nhiều</span>
+    <button class="mclose" onclick="closeModal('bulk-modal')">×</button>
+  </div>
+  <div class="mbody">
+    <div style="background:var(--bluel);border:1px solid #bfdbfe;border-radius:var(--rsm);padding:10px 14px;font-size:13px;color:var(--blue);margin-bottom:14px">
+      💡 Mỗi dòng = 1 mục. Paste từ Excel/Sheets hoặc gõ tay, Enter để xuống dòng.
+    </div>
+    <div class="fg">
+      <label class="fl" id="bulk-label">Danh sách (mỗi dòng 1 tên)</label>
+      <textarea id="bulk-input" style="min-height:200px;font-family:monospace;font-size:13px"></textarea>
+    </div>
+    <div id="bulk-preview" style="font-size:12px;color:var(--g500);margin-top:-8px"></div>
+    <div id="bulk-err" class="hidden" style="font-size:12px;color:var(--red);margin-top:6px"></div>
+  </div>
+  <div class="mfoot">
+    <button class="btn-s" onclick="closeModal('bulk-modal')">Huỷ</button>
+    <button class="btn-p" onclick="saveBulk()">Thêm tất cả</button>
+  </div>
+</div>
+</div>
+
 <!-- ═══════ MODAL: ĐÁNH GIÁ ═══════ -->
 <div id="eval-modal" class="moverlay hidden">
 <div class="mbox">
@@ -1198,7 +1223,10 @@ function renderCustomers(){
   const el=document.getElementById('p-customers');if(!el)return;
   el.innerHTML=`
     <div class="ph"><div class="ph-l"><div class="ph-title">Danh sách khách hàng</div><div class="ph-sub">Dùng cho dropdown trong form Vận Tải · ${CUST.length} khách hàng</div></div></div>
-    <div style="margin-bottom:14px"><button class="btn-p" onclick="openItemModal('cus',null)">+ Thêm khách hàng</button></div>
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+      <button class="btn-p" onclick="openItemModal('cus',null)">+ Thêm 1 khách hàng</button>
+      <button class="btn-g" onclick="openBulkModal('cus')">+ Thêm nhiều cùng lúc</button>
+    </div>
     <div class="tbl-wrap"><table class="dtbl">
       <thead><tr><th>#</th><th>Tên khách hàng</th><th></th></tr></thead>
       <tbody>${CUST.map((c,i)=>`<tr><td>${i+1}</td><td><strong>${c}</strong></td><td><div style="display:flex;gap:5px"><button class="btn-e" onclick="openItemModal('cus',${CUST_ITEMS[i]?.id},true)">Sửa</button><button class="btn-d" onclick="delItem('cus',${CUST_ITEMS[i]?.id})">Xoá</button></div></td></tr>`).join('')||'<tr><td colspan="3" style="text-align:center;padding:24px;color:var(--g400)">Chưa có</td></tr>'}
@@ -1210,7 +1238,10 @@ function renderVehicles(){
   const el=document.getElementById('p-vehicles');if(!el)return;
   el.innerHTML=`
     <div class="ph"><div class="ph-l"><div class="ph-title">Danh sách xe (Biển số)</div><div class="ph-sub">Dùng cho dropdown trong form Vận Tải · ${VEH.length} xe</div></div></div>
-    <div style="margin-bottom:14px"><button class="btn-p" onclick="openItemModal('veh',null)">+ Thêm xe</button></div>
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+      <button class="btn-p" onclick="openItemModal('veh',null)">+ Thêm 1 xe</button>
+      <button class="btn-g" onclick="openBulkModal('veh')">+ Thêm nhiều cùng lúc</button>
+    </div>
     <div class="tbl-wrap"><table class="dtbl">
       <thead><tr><th>#</th><th>Biển số xe</th><th></th></tr></thead>
       <tbody>${VEH.map((v,i)=>`<tr><td>${i+1}</td><td><strong>${v}</strong></td><td><div style="display:flex;gap:5px"><button class="btn-e" onclick="openItemModal('veh',${VEH_ITEMS[i]?.id},true)">Sửa</button><button class="btn-d" onclick="delItem('veh',${VEH_ITEMS[i]?.id})">Xoá</button></div></td></tr>`).join('')||'<tr><td colspan="3" style="text-align:center;padding:24px;color:var(--g400)">Chưa có</td></tr>'}
@@ -1267,6 +1298,49 @@ function delItem(type,idx){
 /* ════════════════════════════════
    MODAL UTILS
    ════════════════════════════════ */
+
+/* ════ BULK ADD ════ */
+let bulkType=null;
+function openBulkModal(type){
+  bulkType=type;
+  const isCus=type==='cus';
+  document.getElementById('bulk-modal-title').textContent=isCus?'Thêm nhiều khách hàng':'Thêm nhiều xe';
+  document.getElementById('bulk-label').textContent=isCus?'Danh sách khách hàng (mỗi dòng 1 tên)':'Danh sách biển số xe (mỗi dòng 1 xe)';
+  document.getElementById('bulk-input').value='';
+  document.getElementById('bulk-preview').textContent='';
+  document.getElementById('bulk-err').classList.add('hidden');
+  document.getElementById('bulk-modal').classList.remove('hidden');
+  document.getElementById('bulk-input').oninput=function(){
+    const n=this.value.split('\n').map(l=>l.trim()).filter(l=>l.length>0).length;
+    const pr=document.getElementById('bulk-preview');
+    if(n>0){pr.textContent='→ Sẽ thêm '+n+' mục';pr.style.color='var(--green)';}
+    else{pr.textContent='';}
+  };
+}
+async function saveBulk(){
+  const raw=document.getElementById('bulk-input').value;
+  const items=raw.split('\n').map(l=>l.trim()).filter(l=>l.length>0);
+  const errEl=document.getElementById('bulk-err');
+  if(items.length===0){showE(errEl,'Vui lòng nhập ít nhất 1 mục.');return;}
+  const existing=bulkType==='cus'?CUST:VEH;
+  const newItems=items.filter(item=>!existing.includes(item));
+  const dupCount=items.length-newItems.length;
+  if(newItems.length===0){showE(errEl,'Tất cả '+items.length+' mục đã tồn tại.');return;}
+  const action=bulkType==='cus'?'BULK_ADD_CUSTOMERS':'BULK_ADD_VEHICLES';
+  showLoading('Đang thêm '+newItems.length+' mục...');
+  try{
+    await api(action,{items:newItems});
+    if(bulkType==='cus'){newItems.forEach(v=>{CUST_ITEMS.push({id:Date.now()+Math.random(),value:v});CUST.push(v);});}
+    else{newItems.forEach(v=>{VEH_ITEMS.push({id:Date.now()+Math.random(),value:v});VEH.push(v);});}
+    closeModal('bulk-modal');
+    if(bulkType==='cus')renderCustomers();else renderVehicles();
+    let msg='✓ Đã thêm '+newItems.length+' mục thành công!';
+    if(dupCount>0)msg+=' ('+dupCount+' mục trùng đã bỏ qua)';
+    alert(msg);
+  }catch(e){showE(errEl,'Lỗi: '+e.message);}
+  hideLoading();
+}
+
 function closeModal(id){document.getElementById(id).classList.add('hidden');evalTarget=null}
 function showE(el,msg){el.textContent=msg;el.classList.remove('hidden')}
 document.querySelectorAll('.moverlay').forEach(el=>el.addEventListener('click',e=>{if(e.target===el)el.classList.add('hidden')}));
