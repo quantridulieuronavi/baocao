@@ -2,6 +2,7 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
+<!-- v20260318090257 -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <meta name="theme-color" content="#1e40af">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1508,7 +1509,8 @@ function openBulkModal(type) {
     ? 'Danh sách khách hàng (mỗi dòng 1 tên)'
     : 'Danh sách biển số xe (mỗi dòng 1 xe, VD: 51G-12345 (Bán tải))';
   document.getElementById('bulk-input').placeholder = isCus
-    ? 'Công ty TNHH ABC Công ty CP XYZ Anh Hùng - Bình Dương ...': '51G-12345 (Bán tải) 51B-67890 (Tải nhỏ) 79C-11111 (2T)...';
+    ? 'Công ty TNHH ABC\nCông ty CP XYZ\nAnh Hùng - Bình Dương\n...'
+    : '51G-12345 (Bán tải)\n51B-67890 (Tải nhỏ)\n79C-11111 (2T)\n...';
   document.getElementById('bulk-input').value = '';
   document.getElementById('bulk-preview').textContent = '';
   document.getElementById('bulk-err').classList.add('hidden');
@@ -1516,8 +1518,7 @@ function openBulkModal(type) {
 
   // Preview realtime khi gõ
   document.getElementById('bulk-input').oninput = function() {
-    const lines = this.value.split('
-').map(l=>l.trim()).filter(l=>l.length>0);
+    const lines = this.value.split('\n').map(l=>l.trim()).filter(l=>l.length>0);
     const preview = document.getElementById('bulk-preview');
     if (lines.length > 0) {
       preview.textContent = `→ Sẽ thêm ${lines.length} mục`;
@@ -1530,8 +1531,7 @@ function openBulkModal(type) {
 
 async function saveBulk() {
   const raw = document.getElementById('bulk-input').value;
-  const items = raw.split('
-').map(l=>l.trim()).filter(l=>l.length>0);
+  const items = raw.split('').map(l=>l.trim()).filter(l=>l.length>0);
   const errEl = document.getElementById('bulk-err');
 
   if (items.length === 0) {
