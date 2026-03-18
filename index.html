@@ -606,8 +606,16 @@ async function handleTokenResponse(resp){
       googleName: gInfo.name,
       picture: gInfo.picture,
       googleEmail: email,
-      email: email  // Đảm bảo email luôn có
+      email: email
     };
+    // Lưu session để tự đăng nhập lại khi load trang
+    localStorage.setItem('bc_session', JSON.stringify({
+      email: user.email,
+      googleToken: resp.access_token,
+      googleName: gInfo.name,
+      picture: gInfo.picture,
+      savedAt: Date.now()
+    }));
     await enterApp();
 
   } catch(err) {
@@ -642,6 +650,7 @@ function handleGoogleLogin(response){
 
 function logout(){
   user=null;
+  localStorage.removeItem('bc_session'); // Xoá session khi đăng xuất
   document.getElementById('app').classList.add('hidden');
   document.getElementById('login-page').classList.remove('hidden');
   if(typeof google!=='undefined') google.accounts.id.disableAutoSelect();
@@ -1620,6 +1629,60 @@ const ml=document.createElement('link');ml.rel='manifest';ml.href=URL.createObje
    INIT
    ════════════════════════════════ */
 updateScore();
+
+// Tự động đăng nhập lại nếu có session đã lưu
+(async function autoLogin() {
+  const saved = localStorage.getItem('bc_session');
+  if (!saved) return;
+  try {
+    const session = JSON.parse(saved);
+    // Kiểm tra session không quá 7 ngày
+    const age = Date.now() - (session.savedAt || 0);
+    // Session không hết hạn - chỉ xoá khi đăng xuất
+    // Xác thực lại email với server
+    showLoading('Đang khôi phục đăng nhập...');
+    const params = new URLSearchParams({
+      action: 'GET_USER_INFO',
+      token: session.email,
+      data: '{}'
+    });
+    const cbName = '_autoLogin' + Date.now();
+    const result = await new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      const timeout = setTimeout(() => {
+        delete window[cbName];
+        script.remove();
+        reject(new Error('timeout'));
+      }, 10000);
+      window[cbName] = function(json) {
+        clearTimeout(timeout);
+        delete window[cbName];
+        script.remove();
+        resolve(json);
+      };
+      script.src = API_URL + '?' + params.toString() + '&callback=' + cbName;
+      script.onerror = () => { clearTimeout(timeout); script.remove(); reject(new Error('error')); };
+      document.head.appendChild(script);
+    });
+    hideLoading();
+    if (result.ok) {
+      user = {
+        ...result.user,
+        googleToken: session.googleToken || '',
+        googleName: session.googleName || result.user.name,
+        picture: session.picture || '',
+        googleEmail: session.email,
+        email: session.email
+      };
+      await enterApp();
+    } else {
+      localStorage.removeItem('bc_session');
+    }
+  } catch(e) {
+    hideLoading();
+    localStorage.removeItem('bc_session');
+  }
+})();
 </script>
 </body>
 </html>
