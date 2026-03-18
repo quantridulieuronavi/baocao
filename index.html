@@ -427,7 +427,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;heigh
    CONFIG — ĐỔI ID NÀY KHI DEPLOY
    ════════════════════════════════ */
 const GOOGLE_CLIENT_ID = '359579898140-o91uuu3hu11jaeghqmcnq6kfve14aaed.apps.googleusercontent.com';
-const API_URL = 'https://script.google.com/macros/s/AKfycbxgBwkRemV_Galf__JX2jJWNySfCrnerW9UVw3_Qe3S80fSJmn6jg0VZcYhfLQGGFK3WQ/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbyVBxTlp8zmCUXqvEK8_P2JU3FsVVxvWlL2qy3vXmBChaj7xJCsCCz2iSXmjFjeFKmwhQ/exec';
 // Lấy tại: console.cloud.google.com → APIs & Services → Credentials → OAuth 2.0 Client IDs
 
 /* ════════════════════════════════
@@ -479,7 +479,7 @@ function showLoading(msg){
 function hideLoading(){const el=document.getElementById('gl');if(el)el.style.display='none';}
 
 /* Runtime cache */
-let EMP=[], CUST=[], VEH=[], RPT_NT=[], RPT_VT=[], DEPTS=[];
+let EMP=[], CUST=[], VEH=[], CUST_ITEMS=[], VEH_ITEMS=[], RPT_NT=[], RPT_VT=[], DEPTS=[];
 
 async function loadMasterData(){
   showLoading('Đang tải dữ liệu...');
@@ -491,8 +491,10 @@ async function loadMasterData(){
       api('GET_DEPARTMENTS'),
     ]);
     EMP   = eR.employees||[];
-    CUST  = (cR.items||[]).map(i=>i.value);
-    VEH   = (vR.items||[]).map(i=>i.value);
+    CUST_ITEMS = cR.items||[];
+    CUST  = CUST_ITEMS.map(i=>i.value);
+    VEH_ITEMS  = vR.items||[];
+    VEH   = VEH_ITEMS.map(i=>i.value);
     DEPTS = dR.departments||[];
   }catch(e){alert('Lỗi tải dữ liệu: '+e.message);}
   hideLoading();
@@ -1306,7 +1308,7 @@ function renderCustomers(){
     </div>
     <div class="tbl-wrap"><table class="dtbl">
       <thead><tr><th>#</th><th>Tên khách hàng</th><th></th></tr></thead>
-      <tbody>${CUST.map((c,i)=>`<tr><td>${i+1}</td><td><strong>${c}</strong></td><td><div style="display:flex;gap:5px"><button class="btn-e" onclick="openItemModal('cus',${i})">Sửa</button><button class="btn-d" onclick="delItem('cus',${i})">Xoá</button></div></td></tr>`).join('')||'<tr><td colspan="3" style="text-align:center;padding:24px;color:var(--g400)">Chưa có</td></tr>'}
+      <tbody>${CUST_ITEMS.map((item,i)=>`<tr><td>${i+1}</td><td><strong>${item.value}</strong></td><td><div style="display:flex;gap:5px"><button class="btn-e" onclick="openItemModalById('cus',${item.id})">Sửa</button><button class="btn-d" onclick="delItemById('cus',${item.id})">Xoá</button></div></td></tr>`).join('')||'<tr><td colspan="3" style="text-align:center;padding:24px;color:var(--g400)">Chưa có</td></tr>'}
       </tbody>
     </table></div>`;
 }
@@ -1321,7 +1323,7 @@ function renderVehicles(){
     </div>
     <div class="tbl-wrap"><table class="dtbl">
       <thead><tr><th>#</th><th>Biển số xe</th><th></th></tr></thead>
-      <tbody>${VEH.map((v,i)=>`<tr><td>${i+1}</td><td><strong>${v}</strong></td><td><div style="display:flex;gap:5px"><button class="btn-e" onclick="openItemModal('veh',${i})">Sửa</button><button class="btn-d" onclick="delItem('veh',${i})">Xoá</button></div></td></tr>`).join('')||'<tr><td colspan="3" style="text-align:center;padding:24px;color:var(--g400)">Chưa có</td></tr>'}
+      <tbody>${VEH_ITEMS.map((item,i)=>`<tr><td>${i+1}</td><td><strong>${item.value}</strong></td><td><div style="display:flex;gap:5px"><button class="btn-e" onclick="openItemModalById('veh',${item.id})">Sửa</button><button class="btn-d" onclick="delItemById('veh',${item.id})">Xoá</button></div></td></tr>`).join('')||'<tr><td colspan="3" style="text-align:center;padding:24px;color:var(--g400)">Chưa có</td></tr>'}
       </tbody>
     </table></div>
     <p style="font-size:12px;color:var(--g400);margin-top:10px">💡 Ghi rõ loại xe trong biển số, VD: "51G-12345 (Bán tải)"</p>`;
@@ -1460,18 +1462,45 @@ function openItemModal(type,idx){
   document.getElementById('item-modal').classList.remove('hidden');
 }
 
+
+function openItemModalById(type, id) {
+  const items = type==='cus' ? CUST_ITEMS : VEH_ITEMS;
+  const item = items.find(i=>i.id===id);
+  if(!item) return;
+  // Dùng lại openItemModal với index nhưng truyền id thật
+  itemMode2 = {type, idx: id, useId: true};
+  document.getElementById('item-title').textContent = type==='cus'?'Sửa khách hàng':'Sửa xe';
+  document.getElementById('item-label').textContent = type==='cus'?'Tên khách hàng':'Biển số xe';
+  document.getElementById('item-input').value = item.value;
+  document.getElementById('item-err').classList.add('hidden');
+  document.getElementById('item-modal').classList.remove('hidden');
+}
+
+async function delItemById(type, id) {
+  if(!confirm('Xoá mục này?')) return;
+  const action = type==='cus' ? 'DELETE_CUSTOMER' : 'DELETE_VEHICLE';
+  showLoading('Đang xoá...');
+  try {
+    await api(action, {id});
+    const r = await api(type==='cus' ? 'GET_CUSTOMERS' : 'GET_VEHICLES');
+    if(type==='cus'){ CUST_ITEMS=r.items||[]; CUST=CUST_ITEMS.map(i=>i.value); renderCustomers(); }
+    else { VEH_ITEMS=r.items||[]; VEH=VEH_ITEMS.map(i=>i.value); renderVehicles(); }
+  } catch(e) { alert('Lỗi xoá: '+e.message); }
+  hideLoading();
+}
+
 async function saveItem(){
   const v=document.getElementById('item-input').value.trim();
   const errEl=document.getElementById('item-err');
   if(!v){showE(errEl,'Vui lòng nhập thông tin.');return}
-  const{type,idx}=itemMode2;
+  const{type,idx,useId}=itemMode2;
   const action=type==='cus'?'SAVE_CUSTOMER':'SAVE_VEHICLE';
   showLoading('Đang lưu...');
   try{
-    await api(action,{id:idx!==null?(type==='cus'?idx+1:idx+1):null,value:v});
+    await api(action,{id: useId ? idx : null, value:v});
     const r=await api(type==='cus'?'GET_CUSTOMERS':'GET_VEHICLES');
-    if(type==='cus') CUST=(r.items||[]).map(i=>i.value);
-    else VEH=(r.items||[]).map(i=>i.value);
+    if(type==='cus'){ CUST_ITEMS=r.items||[]; CUST=CUST_ITEMS.map(i=>i.value); }
+    else { VEH_ITEMS=r.items||[]; VEH=VEH_ITEMS.map(i=>i.value); }
     closeModal('item-modal');
     if(type==='cus')renderCustomers();else renderVehicles();
   }catch(e){showE(document.getElementById('item-err'),'Lỗi: '+e.message);hideLoading();return;}
@@ -1485,8 +1514,8 @@ async function delItem(type,idx){
   try{
     await api(action,{id:idx+1});
     const r=await api(type==='cus'?'GET_CUSTOMERS':'GET_VEHICLES');
-    if(type==='cus') CUST=(r.items||[]).map(i=>i.value);
-    else VEH=(r.items||[]).map(i=>i.value);
+    if(type==='cus'){ CUST_ITEMS=r.items||[]; CUST=CUST_ITEMS.map(i=>i.value); }
+    else { VEH_ITEMS=r.items||[]; VEH=VEH_ITEMS.map(i=>i.value); }
     if(type==='cus')renderCustomers();else renderVehicles();
   }catch(e){alert('Lỗi xoá: '+e.message);}
   hideLoading();
@@ -1531,7 +1560,7 @@ function openBulkModal(type) {
 
 async function saveBulk() {
   const raw = document.getElementById('bulk-input').value;
-  const items = raw.split('').map(l=>l.trim()).filter(l=>l.length>0);
+  const items = raw.split('\n').map(l=>l.trim()).filter(l=>l.length>0);
   const errEl = document.getElementById('bulk-err');
 
   if (items.length === 0) {
@@ -1552,7 +1581,7 @@ async function saveBulk() {
   const action = bulkType === 'cus' ? 'BULK_ADD_CUSTOMERS' : 'BULK_ADD_VEHICLES';
   showLoading(`Đang thêm ${newItems.length} mục...`);
   try {
-    await api(action, { items: newItems });
+    await api(action, { items: Array.isArray(newItems) ? newItems : [newItems] });
     // Reload data
     const r = await api(bulkType === 'cus' ? 'GET_CUSTOMERS' : 'GET_VEHICLES');
     if (bulkType === 'cus') CUST = (r.items||[]).map(i=>i.value);
