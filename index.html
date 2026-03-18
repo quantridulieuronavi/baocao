@@ -2,7 +2,6 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
-<!-- v20260318090257 -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <meta name="theme-color" content="#1e40af">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -317,38 +316,11 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;heigh
       <div id="p-dept" class="hidden"></div>
       <div id="p-all" class="hidden"></div>
       <div id="p-hr" class="hidden"></div>
-      <div id="p-depts" class="hidden"></div>
       <div id="p-customers" class="hidden"></div>
       <div id="p-vehicles" class="hidden"></div>
     </div>
   </div>
   <div class="mob-nb hidden" id="mob-nav"><div class="mob-inner" id="mob-inner"></div></div>
-</div>
-
-
-<!-- ═══════ MODAL: THÊM NHIỀU ═══════ -->
-<div id="bulk-modal" class="moverlay hidden">
-<div class="mbox" style="max-width:560px">
-  <div class="mhead">
-    <span class="mtitle" id="bulk-modal-title">Thêm nhiều khách hàng</span>
-    <button class="mclose" onclick="closeModal('bulk-modal')">×</button>
-  </div>
-  <div class="mbody">
-    <div style="background:var(--bluel);border:1px solid #bfdbfe;border-radius:var(--rsm);padding:10px 14px;font-size:13px;color:var(--blue);margin-bottom:14px">
-      💡 Mỗi dòng = 1 mục. Paste từ Excel/Sheets hoặc gõ tay, Enter để xuống dòng.
-    </div>
-    <div class="fg">
-      <label class="fl" id="bulk-label">Danh sách (mỗi dòng 1 tên)</label>
-      <textarea id="bulk-input" style="min-height:200px;font-family:monospace;font-size:13px" placeholder="Công ty TNHH ABC&#10;Công ty CP XYZ&#10;Anh Hùng - Bình Dương&#10;..."></textarea>
-    </div>
-    <div id="bulk-preview" style="font-size:12px;color:var(--g500);margin-top:-8px"></div>
-    <div id="bulk-err" class="hidden" style="font-size:12px;color:var(--red);margin-top:6px"></div>
-  </div>
-  <div class="mfoot">
-    <button class="btn-s" onclick="closeModal('bulk-modal')">Huỷ</button>
-    <button class="btn-p" onclick="saveBulk()">Thêm tất cả</button>
-  </div>
-</div>
 </div>
 
 <!-- ═══════ MODAL: ĐÁNH GIÁ ═══════ -->
@@ -382,7 +354,11 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;heigh
     <div class="g2">
       <div class="fg"><label class="fl">Bộ phận <span class="req">*</span></label>
         <select id="em-dept">
-          <option value="">-- Chọn bộ phận --</option>
+          <option value="">-- Chọn --</option>
+          <option>Nội Thất</option><option>Vận Tải</option>
+          <option>Kế Toán Nội Thất</option><option>Kế Toán Vận Tải</option>
+          <option>Kế Toán Tổng Hợp</option>
+          <option>Điều Hành</option><option>Nhân Sự</option><option>Admin</option>
         </select>
       </div>
       <div class="fg"><label class="fl">Mã nhân viên <span class="req">*</span></label><input type="text" id="em-code" placeholder="VD: NT001"></div>
@@ -427,75 +403,53 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;heigh
    CONFIG — ĐỔI ID NÀY KHI DEPLOY
    ════════════════════════════════ */
 const GOOGLE_CLIENT_ID = '359579898140-o91uuu3hu11jaeghqmcnq6kfve14aaed.apps.googleusercontent.com';
-const API_URL = 'https://script.google.com/macros/s/AKfycby9CDI7HN6ARB2m2h7tAt3fofUUWUmq4SaEoSRVh32HH3wq9QrorCLgBwyg2iMXKlT6qA/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbzp8XvyQQdwhw7zqNA3DBG7KCCKV5Y-sU46jJsDE8xLjSzEtKD3mNbYU3cgj5aPIaL0YQ/exec';
 // Lấy tại: console.cloud.google.com → APIs & Services → Credentials → OAuth 2.0 Client IDs
 
 /* ════════════════════════════════
    STORAGE
    ════════════════════════════════ */
 /* ════════════════════════════════
-   API LAYER — Google Apps Script
+   API LAYER — Google Apps Script (JSONP)
    ════════════════════════════════ */
 async function api(action, data={}) {
   const token = user?.googleEmail || user?.googleToken || '';
   return new Promise((resolve, reject) => {
-    // Dùng script tag để bypass CORS (JSONP approach)
     const cbName = '_cb' + Date.now() + Math.floor(Math.random()*9999);
-    const params = new URLSearchParams({
-      action,
-      token,
-      data: JSON.stringify(data),
-      callback: cbName
-    });
+    const params = new URLSearchParams({ action, token, data: JSON.stringify(data), callback: cbName });
     const script = document.createElement('script');
-    const timeout = setTimeout(() => {
-      cleanup();
-      reject(new Error('Request timeout sau 15 giây'));
-    }, 15000);
-    function cleanup() {
-      clearTimeout(timeout);
-      delete window[cbName];
-      if (script.parentNode) script.parentNode.removeChild(script);
-    }
-    window[cbName] = function(json) {
-      cleanup();
-      if (!json.ok) reject(new Error(json.error || 'Lỗi server'));
-      else resolve(json);
-    };
+    const timeout = setTimeout(() => { cleanup(); reject(new Error('Timeout 15s')); }, 15000);
+    function cleanup(){ clearTimeout(timeout); delete window[cbName]; if(script.parentNode) script.remove(); }
+    window[cbName] = function(json){ cleanup(); if(!json.ok) reject(new Error(json.error||'Lỗi server')); else resolve(json); };
     script.src = API_URL + '?' + params.toString();
     script.onerror = () => { cleanup(); reject(new Error('Network error')); };
     document.head.appendChild(script);
   });
 }
 
-
 function showLoading(msg){
   let el=document.getElementById('gl');
   if(!el){el=document.createElement('div');el.id='gl';
-    el.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9999;background:#1e40af;color:#fff;padding:8px 16px;font-size:13px;font-weight:600;text-align:center;letter-spacing:.3px';
+    el.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9999;background:#1e40af;color:#fff;padding:8px 16px;font-size:13px;font-weight:600;text-align:center';
     document.body.appendChild(el);}
   el.textContent='⏳  '+(msg||'Đang xử lý...');el.style.display='block';
 }
 function hideLoading(){const el=document.getElementById('gl');if(el)el.style.display='none';}
 
 /* Runtime cache */
-let EMP=[], CUST=[], VEH=[], CUST_ITEMS=[], VEH_ITEMS=[], RPT_NT=[], RPT_VT=[], DEPTS=[];
+let EMP=[], CUST=[], VEH=[], RPT_NT=[], RPT_VT=[], DEPTS=[];
+let CUST_ITEMS=[], VEH_ITEMS=[];
 
 async function loadMasterData(){
   showLoading('Đang tải dữ liệu...');
   try{
     const [eR,cR,vR,dR]=await Promise.all([
-      api('GET_EMPLOYEES'),
-      api('GET_CUSTOMERS'),
-      api('GET_VEHICLES'),
-      api('GET_DEPARTMENTS'),
+      api('GET_EMPLOYEES'), api('GET_CUSTOMERS'), api('GET_VEHICLES'), api('GET_DEPARTMENTS'),
     ]);
-    EMP   = eR.employees||[];
-    CUST_ITEMS = cR.items||[];
-    CUST  = CUST_ITEMS.map(i=>i.value);
-    VEH_ITEMS  = vR.items||[];
-    VEH   = VEH_ITEMS.map(i=>i.value);
-    DEPTS = dR.departments||[];
+    EMP=eR.employees||[];
+    CUST_ITEMS=cR.items||[]; CUST=CUST_ITEMS.map(i=>i.value);
+    VEH_ITEMS=vR.items||[];  VEH=VEH_ITEMS.map(i=>i.value);
+    DEPTS=dR.departments||[];
   }catch(e){alert('Lỗi tải dữ liệu: '+e.message);}
   hideLoading();
 }
@@ -509,17 +463,11 @@ async function loadReports(){
     else if(l==='ql') scope={boPhan:d};
     else if(l==='kt_nt') scope={boPhan:'Nội Thất'};
     else if(l==='kt_vt') scope={boPhan:'Vận Tải'};
-    // kt_th, dh, admin: không filter = lấy hết
-    const [ntR,vtR]=await Promise.all([
-      api('GET_REPORTS_NT',scope),
-      api('GET_REPORTS_VT',scope),
-    ]);
-    RPT_NT=ntR.reports||[];
-    RPT_VT=vtR.reports||[];
+    const [ntR,vtR]=await Promise.all([api('GET_REPORTS_NT',scope),api('GET_REPORTS_VT',scope)]);
+    RPT_NT=ntR.reports||[]; RPT_VT=vtR.reports||[];
   }catch(e){console.error('loadReports:',e);}
   hideLoading();
 }
-
 
 
 /* ════════════════════════════════
@@ -540,9 +488,6 @@ const ATC=['#1e40af','#065f46','#78350f','#581c87','#134e4a','#7c2d12','#991b1b'
 const avStyle=n=>{const i=n.charCodeAt(0)%AVC.length;return`background:${AVC[i]};color:${ATC[i]}`};
 const initials=n=>n.split(' ').filter(Boolean).slice(-2).map(w=>w[0].toUpperCase()).join('');
 const getMgr=dept=>EMP.find(e=>e.dept===dept&&e.level==='ql')?.name||'(Chưa có quản lý)';
-const getDeptForm=dept=>(DEPTS.find(d=>d.name===dept)?.loaiForm)||'nt'; // 'nt' hoặc 'vt'
-const getDeptNames=()=>DEPTS.map(d=>d.name);
-const getDeptOptions=()=>DEPTS.map(d=>`<option value="${d.name}">${d.name}</option>`).join('');
 
 const LEVEL_LABEL={nv:'Nhân viên',ql:'Quản lý',kt_nt:'KT Nội Thất',kt_vt:'KT Vận Tải',kt_th:'KT Tổng Hợp',dh:'Điều Hành',ns:'Nhân Sự',admin:'Admin'};
 function scoreColor(s){return s>=80?'var(--green)':s>=50?'var(--amber)':'var(--red)'}
@@ -552,95 +497,43 @@ function scoreChip(s){return s>=80?'chip-good':s>=50?'chip-mid':'chip-bad'}
    GOOGLE SIGN-IN
    ════════════════════════════════ */
 function signInWithGoogle(){
-  if(typeof google==='undefined'||typeof google.accounts==='undefined'){
-    alert('Thư viện Google chưa tải xong.\nVui lòng tải lại trang (F5) rồi thử lại.');
+  if(typeof google==='undefined'||!google.accounts){
+    alert('Không tải được thư viện Google.\nVui lòng tải lại trang và thử lại.');
     return;
   }
-  try{
-    // Dùng OAuth2 Token Client — mở popup chọn tài khoản Gmail
-    const client = google.accounts.oauth2.initTokenClient({
-      client_id: GOOGLE_CLIENT_ID,
-      scope: 'email profile openid',
-      callback: handleTokenResponse,
-    });
-    client.requestAccessToken({prompt:'select_account'});
-  }catch(err){
-    console.error('Google login error:', err);
-    alert('Lỗi khởi tạo Google Login: '+err.message);
-  }
+  const client=google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CLIENT_ID,
+    scope: 'email profile openid',
+    callback: handleTokenResponse,
+  });
+  client.requestAccessToken({prompt:'select_account'});
 }
 
 async function handleTokenResponse(resp){
-  if(resp.error){
-    console.error('Token error:', resp);
-    alert('Lỗi đăng nhập: '+resp.error);
-    return;
-  }
+  if(resp.error){ alert('Lỗi đăng nhập: '+resp.error); return; }
   if(!resp.access_token){ return; }
-
   showLoading('Đang xác thực...');
   try {
-    // Lấy thông tin Google
     const gInfo = await fetch('https://www.googleapis.com/oauth2/v3/userinfo',{
       headers:{ Authorization:'Bearer '+resp.access_token }
     }).then(r=>r.json());
-
-    console.log('Google user info:', gInfo);
-    const email = (gInfo.email||'').toLowerCase();
-
-    // Gọi thẳng API kiểm tra email trong Sheets
-    const params = new URLSearchParams({ action:'GET_USER_INFO', token:email, data:'{}' });
-    const apiRes = await fetch(API_URL+'?'+params).then(r=>r.json());
-
+    const email=(gInfo.email||'').toLowerCase();
+    const params=new URLSearchParams({action:'GET_USER_INFO',token:email,data:'{}'});
+    const cbName='_login'+Date.now();
+    const apiRes=await new Promise((resolve,reject)=>{
+      const script=document.createElement('script');
+      const timeout=setTimeout(()=>{delete window[cbName];script.remove();reject(new Error('Timeout'));},15000);
+      window[cbName]=function(json){clearTimeout(timeout);delete window[cbName];script.remove();resolve(json);};
+      script.src=API_URL+'?'+params.toString()+'&callback='+cbName;
+      script.onerror=()=>{clearTimeout(timeout);script.remove();reject(new Error('Network error'));};
+      document.head.appendChild(script);
+    });
     hideLoading();
-
-    if(!apiRes.ok){
-      alert('Email "'+email+'" chưa được đăng ký.\nLiên hệ Admin để được cấp quyền.');
-      return;
-    }
-
-    // Đăng nhập thành công
-    user = {
-      ...apiRes.user,
-      googleToken: resp.access_token,
-      googleName: gInfo.name,
-      picture: gInfo.picture,
-      googleEmail: email,
-      email: email
-    };
-    // Lưu session để tự đăng nhập lại khi load trang
-    localStorage.setItem('bc_session', JSON.stringify({
-      email: user.email,
-      googleToken: resp.access_token,
-      googleName: gInfo.name,
-      picture: gInfo.picture,
-      savedAt: Date.now()
-    }));
+    if(!apiRes.ok){ alert('Email "'+email+'" chưa được đăng ký.\nLiên hệ Admin để được cấp quyền.'); return; }
+    user={...apiRes.user,googleToken:resp.access_token,googleName:gInfo.name,picture:gInfo.picture,googleEmail:email,email};
+    localStorage.setItem('bc_session',JSON.stringify({email,googleToken:resp.access_token,googleName:gInfo.name,picture:gInfo.picture,savedAt:Date.now(),userObj:user}));
     await enterApp();
-
-  } catch(err) {
-    hideLoading();
-    console.error('Login error:', err);
-    alert('Lỗi đăng nhập: '+err.message);
-  }
-}
-
-function handleGoogleLogin(response){
-  // Decode JWT payload từ Google
-  const payload = JSON.parse(atob(response.credential.split('.')[1]));
-  const email = payload.email.toLowerCase();
-  const emp = EMP.find(e=>e.email.toLowerCase()===email);
-  if(!emp){
-    alert(`Email ${email} chưa được đăng ký trong hệ thống.\nVui lòng liên hệ Nhân Sự để được cấp quyền.`);
-    return;
-  }
-  user = {
-    ...emp,
-    googleName: payload.name,
-    picture: payload.picture,
-    googleEmail: email
-  };
-  enterApp();
+  } catch(err){ hideLoading(); alert('Lỗi: '+err.message); }
 }
 
 /* ════════════════════════════════
@@ -650,7 +543,7 @@ function handleGoogleLogin(response){
 
 function logout(){
   user=null;
-  localStorage.removeItem('bc_session'); // Xoá session khi đăng xuất
+  localStorage.removeItem('bc_session');
   document.getElementById('app').classList.add('hidden');
   document.getElementById('login-page').classList.remove('hidden');
   if(typeof google!=='undefined') google.accounts.id.disableAutoSelect();
@@ -659,9 +552,6 @@ function logout(){
 async function enterApp(){
   document.getElementById('login-page').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
-  // Load master data từ Sheets
-  await loadMasterData();
-  await loadReports();
   // Topbar
   const badge=document.getElementById('top-badge');
   badge.textContent=LEVEL_LABEL[user.level]||user.level;
@@ -670,6 +560,8 @@ async function enterApp(){
   const av=document.getElementById('top-av');
   if(user.picture){av.src=user.picture;av.classList.remove('hidden')}else{av.classList.add('hidden')}
   buildSidebar(); buildMobNav();
+  await loadMasterData();
+  await loadReports();
   activateTab(getFirstTab());
   renderAll();
 }
@@ -678,44 +570,44 @@ async function enterApp(){
    NAVIGATION
    ════════════════════════════════ */
 function getNavItems(){
-  const l=user.level, d=user.dept;
+  const l=user.level,d=user.dept;
   const items=[];
-  const form = getDeptForm(d); // 'nt' hoặc 'vt' dựa vào Sheets
-  const submitItem = form==='vt'
-    ? {id:'submit-vt',icon:'🚛',label:'Nộp BC'}
-    : {id:'submit-nt',icon:'📝',label:'Nộp BC'};
-
+  // Nhân viên và Quản lý
   if(l==='nv'||l==='ql'){
-    items.push(submitItem);
+    if(d==='Nội Thất') items.push({id:'submit-nt',icon:'📝',label:'Nộp BC'});
+    if(d==='Vận Tải')  items.push({id:'submit-vt',icon:'🚛',label:'Nộp BC'});
     items.push({id:'mine',icon:'📋',label:'Của tôi'});
-    if(l==='ql') items.push({id:'dept',icon:'👥',label:'BC Phòng'});
+    if(l==='ql') items.push({id:'dept',icon:'👥',label:`BC Phòng`});
   }
-  // KT của phòng nào thì xem phòng đó + nộp BC theo form của phòng đó
-  if(l==='kt_nt'||l==='kt_vt'){
-    items.push(submitItem);
+  // Kế toán NT: nộp báo cáo NT + xem NT
+  if(l==='kt_nt'){
+    items.push({id:'submit-nt',icon:'📝',label:'Nộp BC'});
     items.push({id:'mine',icon:'📋',label:'Của tôi'});
-    items.push({id:'dept',icon:'📊',label:'BC '+d});
+    items.push({id:'dept',icon:'📊',label:'BC Nội Thất'});
   }
+  // Kế toán VT: nộp báo cáo VT + xem VT
+  if(l==='kt_vt'){
+    items.push({id:'submit-vt',icon:'🚛',label:'Nộp BC'});
+    items.push({id:'mine',icon:'📋',label:'Của tôi'});
+    items.push({id:'dept',icon:'📊',label:'BC Vận Tải'});
+  }
+  // Kế toán TH + Điều Hành + Admin: xem tất cả
   if(l==='kt_th'||l==='dh') items.push({id:'all',icon:'📊',label:'Tất cả BC'});
   if(l==='admin'){
     items.push({id:'all',icon:'📊',label:'Tất cả BC'});
     items.push({id:'hr',icon:'👤',label:'Nhân viên'});
-    items.push({id:'depts',icon:'🏗️',label:'Bộ phận'});
     items.push({id:'customers',icon:'🏢',label:'Khách hàng'});
     items.push({id:'vehicles',icon:'🚗',label:'Danh sách xe'});
   }
-  if(l==='ns'){
-    items.push({id:'hr',icon:'👤',label:'Nhân viên'});
-    items.push({id:'depts',icon:'🏗️',label:'Bộ phận'});
-  }
+  if(l==='ns') items.push({id:'hr',icon:'👤',label:'Nhân viên'});
   return items;
 }
 
 function getFirstTab(){
-  const l=user.level, d=user.dept;
-  const form=getDeptForm(d);
-  if(l==='nv'||l==='ql') return form==='vt'?'submit-vt':'submit-nt';
-  if(l==='kt_nt'||l==='kt_vt') return form==='vt'?'submit-vt':'submit-nt';
+  const l=user.level,d=user.dept;
+  if(l==='nv'||l==='ql') return d==='Nội Thất'?'submit-nt':'submit-vt';
+  if(l==='kt_nt') return 'submit-nt';
+  if(l==='kt_vt') return 'submit-vt';
   if(l==='kt_th'||l==='dh') return 'all';
   if(l==='ns') return 'hr';
   if(l==='admin') return 'all';
@@ -737,7 +629,7 @@ function buildMobNav(){
 }
 
 function activateTab(id){
-  ['submit-nt','submit-vt','mine','dept','all','hr','depts','customers','vehicles'].forEach(t=>{
+  ['submit-nt','submit-vt','mine','dept','all','hr','customers','vehicles'].forEach(t=>{
     const p=document.getElementById(`p-${t}`);if(p)p.classList.toggle('hidden',t!==id);
   });
   document.querySelectorAll('.nb,.mob-btn').forEach(b=>b.classList.remove('active'));
@@ -751,7 +643,7 @@ function activateTab(id){
 function renderAll(){
   renderSubmitNT(); renderSubmitVT();
   renderMine(); renderDept(); renderAllRpts();
-  renderHR(); renderDepts(); renderCustomers(); renderVehicles();
+  renderHR(); renderCustomers(); renderVehicles();
 }
 
 /* ════════════════════════════════
@@ -816,7 +708,7 @@ async function submitNT(){
   if(!kh||!ndcv||!tgbd||!tgkt){alert('Vui lòng điền: Khách hàng, Nội dung, Giờ bắt đầu/kết thúc.');return}
   const mins=calcMins(tgbd,tgkt);
   if(mins<=0){alert('Thời gian kết thúc phải sau bắt đầu.');return}
-  const reportNT = {
+  const reportNT={
     email:user.email,name:user.name,code:user.code,pos:user.pos,dept:user.dept,
     ngay:document.getElementById('nt-ngay')?.value||todayISO(),
     khachHang:kh,maCT:document.getElementById('nt-mact')?.value.trim()||'',
@@ -830,16 +722,15 @@ async function submitNT(){
   };
   showLoading('Đang nộp báo cáo...');
   try{
-    await api('SUBMIT_NT', reportNT);
+    await api('SUBMIT_NT',reportNT);
     await loadReports();
     renderSubmitNT();
     const ok=document.getElementById('nt-ok');
     if(ok){ok.classList.remove('hidden');setTimeout(()=>ok.classList.add('hidden'),5000)}
     renderMine();renderDept();renderAllRpts();
-  }catch(e){alert('Lỗi nộp báo cáo: '+e.message);}
+  }catch(e){alert('Lỗi nộp BC: '+e.message);}
   hideLoading();
 }
-
 
 /* ════════════════════════════════
    FORM: VẬN TẢI
@@ -922,7 +813,7 @@ async function submitVT(){
   if(!nth||!kh||!ndcv||!ndi||!nden||!bs||!tgbd||!tgkt){alert('Vui lòng điền đầy đủ các trường bắt buộc (*).');return}
   const mins=calcMins(tgbd,tgkt);
   if(mins<=0){alert('Thời gian kết thúc phải sau bắt đầu.');return}
-  const reportVT = {
+  const reportVT={
     email:user.email,name:user.name,code:user.code,pos:user.pos,dept:user.dept,
     ngay:document.getElementById('vt-ngay')?.value||todayISO(),
     tenNguoiTH:nth,khachHang:kh,ndCongViec:ndcv,
@@ -937,16 +828,15 @@ async function submitVT(){
   };
   showLoading('Đang nộp báo cáo...');
   try{
-    await api('SUBMIT_VT', reportVT);
+    await api('SUBMIT_VT',reportVT);
     await loadReports();
     renderSubmitVT();
     const ok=document.getElementById('vt-ok');
     if(ok){ok.classList.remove('hidden');setTimeout(()=>ok.classList.add('hidden'),5000)}
     renderMine();renderDept();renderAllRpts();
-  }catch(e){alert('Lỗi nộp báo cáo: '+e.message);}
+  }catch(e){alert('Lỗi nộp BC: '+e.message);}
   hideLoading();
 }
-
 
 /* ════════════════════════════════
    RENDER CARDS
@@ -1196,13 +1086,13 @@ async function saveEval(){
   const sc=parseInt(document.getElementById('eval-slider').value);
   const note=document.getElementById('eval-note').value.trim();
   const action=evalTarget.type==='nt'?'SAVE_EVAL_NT':'SAVE_EVAL_VT';
-  showLoading('Đang lưu đánh giá...');
+  showLoading('Đang lưu...');
   try{
     await api(action,{id:evalTarget.id,danhGia:sc,ghiChuDG:note});
     await loadReports();
     closeModal('eval-modal');
     renderMine();renderDept();renderAllRpts();
-  }catch(e){alert('Lỗi lưu đánh giá: '+e.message);}
+  }catch(e){alert('Lỗi: '+e.message);}
   hideLoading();
 }
 
@@ -1264,10 +1154,6 @@ function openEmpModal(id){
     document.getElementById('em-dept').value='';
     document.getElementById('em-level').value='nv';
   }
-  // Populate dropdown bộ phận từ DEPTS
-  const deptSel = document.getElementById('em-dept');
-  deptSel.innerHTML = '<option value="">-- Chọn bộ phận --</option>' +
-    DEPTS.map(d=>`<option value="${d.name}">${d.name}</option>`).join('');
   document.getElementById('em-err').classList.add('hidden');
   document.getElementById('emp-modal').classList.remove('hidden');
 }
@@ -1289,7 +1175,8 @@ async function saveEmployee(){
     EMP=eR.employees||[];
     closeModal('emp-modal');renderHR();
   }catch(e){showE(errEl,'Lỗi: '+e.message);hideLoading();return;}
-  hideLoading();buildDemoList();
+  hideLoading();
+ closeModal('emp-modal');renderHR();buildDemoList();
 }
 
 async function delEmp(id){
@@ -1311,13 +1198,10 @@ function renderCustomers(){
   const el=document.getElementById('p-customers');if(!el)return;
   el.innerHTML=`
     <div class="ph"><div class="ph-l"><div class="ph-title">Danh sách khách hàng</div><div class="ph-sub">Dùng cho dropdown trong form Vận Tải · ${CUST.length} khách hàng</div></div></div>
-    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
-      <button class="btn-p" onclick="openItemModal('cus',null)">+ Thêm 1 khách hàng</button>
-      <button class="btn-g" onclick="openBulkModal('cus')">+ Thêm nhiều cùng lúc</button>
-    </div>
+    <div style="margin-bottom:14px"><button class="btn-p" onclick="openItemModal('cus',null)">+ Thêm khách hàng</button></div>
     <div class="tbl-wrap"><table class="dtbl">
       <thead><tr><th>#</th><th>Tên khách hàng</th><th></th></tr></thead>
-      <tbody>${CUST_ITEMS.map((item,i)=>`<tr><td>${i+1}</td><td><strong>${item.value}</strong></td><td><div style="display:flex;gap:5px"><button class="btn-e" onclick="openItemModalById('cus',${item.id})">Sửa</button><button class="btn-d" onclick="delItemById('cus',${item.id})">Xoá</button></div></td></tr>`).join('')||'<tr><td colspan="3" style="text-align:center;padding:24px;color:var(--g400)">Chưa có</td></tr>'}
+      <tbody>${CUST.map((c,i)=>`<tr><td>${i+1}</td><td><strong>${c}</strong></td><td><div style="display:flex;gap:5px"><button class="btn-e" onclick="openItemModal('cus',${CUST_ITEMS[i]?.id},true)">Sửa</button><button class="btn-d" onclick="delItem('cus',${CUST_ITEMS[i]?.id})">Xoá</button></div></td></tr>`).join('')||'<tr><td colspan="3" style="text-align:center;padding:24px;color:var(--g400)">Chưa có</td></tr>'}
       </tbody>
     </table></div>`;
 }
@@ -1326,142 +1210,18 @@ function renderVehicles(){
   const el=document.getElementById('p-vehicles');if(!el)return;
   el.innerHTML=`
     <div class="ph"><div class="ph-l"><div class="ph-title">Danh sách xe (Biển số)</div><div class="ph-sub">Dùng cho dropdown trong form Vận Tải · ${VEH.length} xe</div></div></div>
-    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
-      <button class="btn-p" onclick="openItemModal('veh',null)">+ Thêm 1 xe</button>
-      <button class="btn-g" onclick="openBulkModal('veh')">+ Thêm nhiều cùng lúc</button>
-    </div>
+    <div style="margin-bottom:14px"><button class="btn-p" onclick="openItemModal('veh',null)">+ Thêm xe</button></div>
     <div class="tbl-wrap"><table class="dtbl">
       <thead><tr><th>#</th><th>Biển số xe</th><th></th></tr></thead>
-      <tbody>${VEH_ITEMS.map((item,i)=>`<tr><td>${i+1}</td><td><strong>${item.value}</strong></td><td><div style="display:flex;gap:5px"><button class="btn-e" onclick="openItemModalById('veh',${item.id})">Sửa</button><button class="btn-d" onclick="delItemById('veh',${item.id})">Xoá</button></div></td></tr>`).join('')||'<tr><td colspan="3" style="text-align:center;padding:24px;color:var(--g400)">Chưa có</td></tr>'}
+      <tbody>${VEH.map((v,i)=>`<tr><td>${i+1}</td><td><strong>${v}</strong></td><td><div style="display:flex;gap:5px"><button class="btn-e" onclick="openItemModal('veh',${VEH_ITEMS[i]?.id},true)">Sửa</button><button class="btn-d" onclick="delItem('veh',${VEH_ITEMS[i]?.id})">Xoá</button></div></td></tr>`).join('')||'<tr><td colspan="3" style="text-align:center;padding:24px;color:var(--g400)">Chưa có</td></tr>'}
       </tbody>
     </table></div>
     <p style="font-size:12px;color:var(--g400);margin-top:10px">💡 Ghi rõ loại xe trong biển số, VD: "51G-12345 (Bán tải)"</p>`;
 }
 
-/* ════════════════════════════════
-   PANEL: BỘ PHẬN
-   ════════════════════════════════ */
-function renderDepts(){
-  const el=document.getElementById('p-depts');
-  if(!el||!user)return;
-  const rows=DEPTS.map((d,i)=>`<tr>
-    <td>${d.thuTu||i+1}</td>
-    <td><strong>${d.name}</strong></td>
-    <td><span style="font-family:monospace;font-size:12px;background:var(--g100);padding:2px 8px;border-radius:4px">${d.loaiForm==='vt'?'🚛 Vận Tải':'📝 Nội Thất'}</span></td>
-    <td style="color:var(--g500)">${d.moTa||'—'}</td>
-    <td><div style="display:flex;gap:5px">
-      <button class="btn-e" onclick="openDeptModal(${d.id})">Sửa</button>
-      <button class="btn-d" onclick="delDept(${d.id})">Xoá</button>
-    </div></td>
-  </tr>`).join('');
-  el.innerHTML=`
-    <div class="ph"><div class="ph-l">
-      <div class="ph-title">Quản lý bộ phận</div>
-      <div class="ph-sub">${DEPTS.length} bộ phận · Thêm bộ phận mới để tự động cập nhật toàn hệ thống</div>
-    </div></div>
-    <div style="margin-bottom:14px">
-      <button class="btn-p" onclick="openDeptModal(null)">+ Thêm bộ phận</button>
-    </div>
-    <div class="tbl-wrap"><table class="dtbl">
-      <thead><tr><th>#</th><th>Tên bộ phận</th><th>Loại form báo cáo</th><th>Mô tả</th><th>Thao tác</th></tr></thead>
-      <tbody>${rows||'<tr><td colspan="5" style="text-align:center;padding:28px;color:var(--g400)">Chưa có bộ phận nào</td></tr>'}</tbody>
-    </table></div>
-    <p style="font-size:12px;color:var(--g400);margin-top:10px">
-      💡 <strong>Loại form</strong>: "Nội Thất" = dùng form có Khách hàng, Mã CT, KM đi... · "Vận Tải" = dùng form có Biển số xe, Nơi đi/đến...
-    </p>`;
-}
-
-let deptEditId=null;
-function openDeptModal(id){
-  deptEditId=id;
-  const isEdit=id!==null;
-  // Tạo modal động
-  let modal=document.getElementById('dept-modal');
-  if(!modal){
-    modal=document.createElement('div');
-    modal.id='dept-modal';
-    modal.className='moverlay hidden';
-    modal.innerHTML=`<div class="mbox" style="max-width:480px">
-      <div class="mhead"><span class="mtitle" id="dept-modal-title">Thêm bộ phận</span>
-        <button class="mclose" onclick="closeModal('dept-modal')">×</button></div>
-      <div class="mbody">
-        <div class="fg"><label class="fl">Tên bộ phận <span class="req">*</span></label>
-          <input type="text" id="dm-name" placeholder="VD: Kho Vật Tư, Kinh Doanh..."></div>
-        <div class="g2">
-          <div class="fg"><label class="fl">Loại form báo cáo <span class="req">*</span></label>
-            <select id="dm-form">
-              <option value="nt">📝 Nội Thất (Khách hàng, Mã CT, KM...)</option>
-              <option value="vt">🚛 Vận Tải (Biển số xe, Nơi đi/đến...)</option>
-            </select></div>
-          <div class="fg"><label class="fl">Thứ tự hiển thị</label>
-            <input type="number" id="dm-order" placeholder="1, 2, 3..." min="1" value="99"></div>
-        </div>
-        <div class="fg"><label class="fl">Mô tả</label>
-          <input type="text" id="dm-desc" placeholder="Mô tả ngắn về bộ phận..."></div>
-        <div id="dm-err" class="hidden" style="font-size:12px;color:var(--red)"></div>
-      </div>
-      <div class="mfoot">
-        <button class="btn-s" onclick="closeModal('dept-modal')">Huỷ</button>
-        <button class="btn-p" onclick="saveDept()">Lưu</button>
-      </div>
-    </div>`;
-    modal.addEventListener('click', e=>{if(e.target===modal)modal.classList.add('hidden');});
-    document.body.appendChild(modal);
-  }
-  document.getElementById('dept-modal-title').textContent = isEdit?'Sửa bộ phận':'Thêm bộ phận mới';
-  if(isEdit){
-    const d=DEPTS.find(x=>x.id===id);
-    if(!d)return;
-    document.getElementById('dm-name').value=d.name;
-    document.getElementById('dm-form').value=d.loaiForm||'nt';
-    document.getElementById('dm-order').value=d.thuTu||99;
-    document.getElementById('dm-desc').value=d.moTa||'';
-  } else {
-    document.getElementById('dm-name').value='';
-    document.getElementById('dm-form').value='nt';
-    document.getElementById('dm-order').value=DEPTS.length+1;
-    document.getElementById('dm-desc').value='';
-  }
-  document.getElementById('dm-err').classList.add('hidden');
-  modal.classList.remove('hidden');
-}
-
-async function saveDept(){
-  const name=document.getElementById('dm-name').value.trim();
-  const loaiForm=document.getElementById('dm-form').value;
-  const thuTu=parseInt(document.getElementById('dm-order').value)||99;
-  const moTa=document.getElementById('dm-desc').value.trim();
-  const errEl=document.getElementById('dm-err');
-  if(!name){showE(errEl,'Vui lòng nhập tên bộ phận.');return;}
-  showLoading('Đang lưu...');
-  try{
-    await api('SAVE_DEPARTMENT',{id:deptEditId||null,name,loaiForm,thuTu,moTa});
-    const dR=await api('GET_DEPARTMENTS');
-    DEPTS=dR.departments||[];
-    closeModal('dept-modal');
-    renderDepts();
-  }catch(e){showE(errEl,'Lỗi: '+e.message);hideLoading();return;}
-  hideLoading();
-}
-
-async function delDept(id){
-  const d=DEPTS.find(x=>x.id===id);
-  if(!confirm(`Xoá bộ phận "${d?.name}"?
-
-Lưu ý: Nhân viên thuộc bộ phận này vẫn giữ nguyên, chỉ xoá khỏi danh mục.`))return;
-  showLoading('Đang xoá...');
-  try{
-    await api('DELETE_DEPARTMENT',{id});
-    const dR=await api('GET_DEPARTMENTS');
-    DEPTS=dR.departments||[];
-    renderDepts();
-  }catch(e){alert('Lỗi: '+e.message);}
-  hideLoading();
-}
-
 let itemMode2=null;
-function openItemModal(type,idx){
-  itemMode2={type,idx};
+function openItemModal(type,idx,useId=false){
+  itemMode2={type,idx,useId};
   const isE=idx!==null;
   document.getElementById('item-title').textContent=isE?(type==='cus'?'Sửa khách hàng':'Sửa xe'):(type==='cus'?'Thêm khách hàng':'Thêm xe');
   document.getElementById('item-label').textContent=type==='cus'?'Tên khách hàng':'Biển số xe';
@@ -1469,33 +1229,6 @@ function openItemModal(type,idx){
   document.getElementById('item-input').placeholder=type==='cus'?'Công ty TNHH ABC':'51G-12345 (Bán tải)';
   document.getElementById('item-err').classList.add('hidden');
   document.getElementById('item-modal').classList.remove('hidden');
-}
-
-
-function openItemModalById(type, id) {
-  const items = type==='cus' ? CUST_ITEMS : VEH_ITEMS;
-  const item = items.find(i=>i.id===id);
-  if(!item) return;
-  // Dùng lại openItemModal với index nhưng truyền id thật
-  itemMode2 = {type, idx: id, useId: true};
-  document.getElementById('item-title').textContent = type==='cus'?'Sửa khách hàng':'Sửa xe';
-  document.getElementById('item-label').textContent = type==='cus'?'Tên khách hàng':'Biển số xe';
-  document.getElementById('item-input').value = item.value;
-  document.getElementById('item-err').classList.add('hidden');
-  document.getElementById('item-modal').classList.remove('hidden');
-}
-
-async function delItemById(type, id) {
-  if(!confirm('Xoá mục này?')) return;
-  const action = type==='cus' ? 'DELETE_CUSTOMER' : 'DELETE_VEHICLE';
-  showLoading('Đang xoá...');
-  try {
-    await api(action, {id});
-    const r = await api(type==='cus' ? 'GET_CUSTOMERS' : 'GET_VEHICLES');
-    if(type==='cus'){ CUST_ITEMS=r.items||[]; CUST=CUST_ITEMS.map(i=>i.value); renderCustomers(); }
-    else { VEH_ITEMS=r.items||[]; VEH=VEH_ITEMS.map(i=>i.value); renderVehicles(); }
-  } catch(e) { alert('Lỗi xoá: '+e.message); }
-  hideLoading();
 }
 
 async function saveItem(){
@@ -1506,107 +1239,30 @@ async function saveItem(){
   const action=type==='cus'?'SAVE_CUSTOMER':'SAVE_VEHICLE';
   showLoading('Đang lưu...');
   try{
-    await api(action,{id: useId ? idx : null, value:v});
-    const r=await api(type==='cus'?'GET_CUSTOMERS':'GET_VEHICLES');
-    if(type==='cus'){ CUST_ITEMS=r.items||[]; CUST=CUST_ITEMS.map(i=>i.value); }
-    else { VEH_ITEMS=r.items||[]; VEH=VEH_ITEMS.map(i=>i.value); }
+    await api(action,{id:useId?idx:null,value:v});
+    if(type==='cus'){
+      if(useId&&idx!==null){const fi=CUST_ITEMS.findIndex(x=>x.id===idx);if(fi>=0){CUST_ITEMS[fi].value=v;CUST[fi]=v;}}
+      else{const newId=Date.now();CUST_ITEMS.push({id:newId,value:v});CUST.push(v);}
+    }else{
+      if(useId&&idx!==null){const fi=VEH_ITEMS.findIndex(x=>x.id===idx);if(fi>=0){VEH_ITEMS[fi].value=v;VEH[fi]=v;}}
+      else{const newId=Date.now();VEH_ITEMS.push({id:newId,value:v});VEH.push(v);}
+    }
     closeModal('item-modal');
     if(type==='cus')renderCustomers();else renderVehicles();
   }catch(e){showE(document.getElementById('item-err'),'Lỗi: '+e.message);hideLoading();return;}
   hideLoading();
 }
 
-async function delItem(type,idx){
+function delItem(type,idx){
   if(!confirm('Xoá mục này?'))return;
-  const action=type==='cus'?'DELETE_CUSTOMER':'DELETE_VEHICLE';
-  showLoading('Đang xoá...');
-  try{
-    await api(action,{id:idx+1});
-    const r=await api(type==='cus'?'GET_CUSTOMERS':'GET_VEHICLES');
-    if(type==='cus'){ CUST_ITEMS=r.items||[]; CUST=CUST_ITEMS.map(i=>i.value); }
-    else { VEH_ITEMS=r.items||[]; VEH=VEH_ITEMS.map(i=>i.value); }
-    if(type==='cus')renderCustomers();else renderVehicles();
-  }catch(e){alert('Lỗi xoá: '+e.message);}
-  hideLoading();
+  if(type==='cus')CUST.splice(idx,1);else VEH.splice(idx,1);
+ if(type==='cus')renderCustomers();else renderVehicles();
 }
 
 /* ════════════════════════════════
    PANEL: HƯỚNG DẪN
    ════════════════════════════════ */
 
-/* ════════════════════════════════
-   BULK ADD — Thêm nhiều cùng lúc
-   ════════════════════════════════ */
-let bulkType = null;
-
-function openBulkModal(type) {
-  bulkType = type;
-  const isCus = type === 'cus';
-  document.getElementById('bulk-modal-title').textContent = isCus ? 'Thêm nhiều khách hàng' : 'Thêm nhiều xe';
-  document.getElementById('bulk-label').textContent = isCus
-    ? 'Danh sách khách hàng (mỗi dòng 1 tên)'
-    : 'Danh sách biển số xe (mỗi dòng 1 xe, VD: 51G-12345 (Bán tải))';
-  document.getElementById('bulk-input').placeholder = isCus
-    ? 'Công ty TNHH ABC\nCông ty CP XYZ\nAnh Hùng - Bình Dương\n...'
-    : '51G-12345 (Bán tải)\n51B-67890 (Tải nhỏ)\n79C-11111 (2T)\n...';
-  document.getElementById('bulk-input').value = '';
-  document.getElementById('bulk-preview').textContent = '';
-  document.getElementById('bulk-err').classList.add('hidden');
-  document.getElementById('bulk-modal').classList.remove('hidden');
-
-  // Preview realtime khi gõ
-  document.getElementById('bulk-input').oninput = function() {
-    const lines = this.value.split('\n').map(l=>l.trim()).filter(l=>l.length>0);
-    const preview = document.getElementById('bulk-preview');
-    if (lines.length > 0) {
-      preview.textContent = `→ Sẽ thêm ${lines.length} mục`;
-      preview.style.color = 'var(--green)';
-    } else {
-      preview.textContent = '';
-    }
-  };
-}
-
-async function saveBulk() {
-  const raw = document.getElementById('bulk-input').value;
-  const items = raw.split('\n').map(l=>l.trim()).filter(l=>l.length>0);
-  const errEl = document.getElementById('bulk-err');
-
-  if (items.length === 0) {
-    showE(errEl, 'Vui lòng nhập ít nhất 1 mục.');
-    return;
-  }
-
-  // Lọc trùng với dữ liệu đã có
-  const existing = bulkType === 'cus' ? CUST : VEH;
-  const newItems = items.filter(item => !existing.includes(item));
-  const dupCount = items.length - newItems.length;
-
-  if (newItems.length === 0) {
-    showE(errEl, `Tất cả ${items.length} mục đã tồn tại, không có gì để thêm.`);
-    return;
-  }
-
-  const action = bulkType === 'cus' ? 'BULK_ADD_CUSTOMERS' : 'BULK_ADD_VEHICLES';
-  showLoading(`Đang thêm ${newItems.length} mục...`);
-  try {
-    await api(action, { items: Array.isArray(newItems) ? newItems : [newItems] });
-    // Reload data
-    const r = await api(bulkType === 'cus' ? 'GET_CUSTOMERS' : 'GET_VEHICLES');
-    if (bulkType === 'cus') CUST = (r.items||[]).map(i=>i.value);
-    else VEH = (r.items||[]).map(i=>i.value);
-
-    closeModal('bulk-modal');
-    if (bulkType === 'cus') renderCustomers(); else renderVehicles();
-
-    let msg = `✓ Đã thêm ${newItems.length} mục thành công!`;
-    if (dupCount > 0) msg += ` (${dupCount} mục trùng đã bỏ qua)`;
-    alert(msg);
-  } catch(e) {
-    showE(errEl, 'Lỗi: ' + e.message);
-  }
-  hideLoading();
-}
 
 /* ════════════════════════════════
    MODAL UTILS
@@ -1630,50 +1286,36 @@ const ml=document.createElement('link');ml.rel='manifest';ml.href=URL.createObje
    ════════════════════════════════ */
 updateScore();
 
-// Tự động đăng nhập lại nếu có session đã lưu
 (async function autoLogin() {
   const saved = localStorage.getItem('bc_session');
   if (!saved) return;
   try {
     const session = JSON.parse(saved);
-    // Kiểm tra session không quá 7 ngày
     const age = Date.now() - (session.savedAt || 0);
-    // Session không hết hạn - chỉ xoá khi đăng xuất
-    // Xác thực lại email với server
+    // Nếu < 30 phút và có userObj -> dùng luôn, không gọi API
+    if (age < 30*60*1000 && session.userObj) {
+      user = {...session.userObj, googleEmail:session.email, email:session.email};
+      await enterApp();
+      return;
+    }
+    // Verify lại với server
     showLoading('Đang khôi phục đăng nhập...');
-    const params = new URLSearchParams({
-      action: 'GET_USER_INFO',
-      token: session.email,
-      data: '{}'
-    });
-    const cbName = '_autoLogin' + Date.now();
-    const result = await new Promise((resolve, reject) => {
-      const script = document.createElement('script');
-      const timeout = setTimeout(() => {
-        delete window[cbName];
-        script.remove();
-        reject(new Error('timeout'));
-      }, 10000);
-      window[cbName] = function(json) {
-        clearTimeout(timeout);
-        delete window[cbName];
-        script.remove();
-        resolve(json);
-      };
-      script.src = API_URL + '?' + params.toString() + '&callback=' + cbName;
-      script.onerror = () => { clearTimeout(timeout); script.remove(); reject(new Error('error')); };
+    const cbName = '_al' + Date.now();
+    const params = new URLSearchParams({action:'GET_USER_INFO',token:session.email,data:'{}',callback:cbName});
+    const result = await new Promise((resolve,reject)=>{
+      const script=document.createElement('script');
+      const timeout=setTimeout(()=>{delete window[cbName];script.remove();reject(new Error('timeout'));},10000);
+      window[cbName]=function(json){clearTimeout(timeout);delete window[cbName];script.remove();resolve(json);};
+      script.src=API_URL+'?'+params.toString();
+      script.onerror=()=>{clearTimeout(timeout);script.remove();reject(new Error('error'));};
       document.head.appendChild(script);
     });
     hideLoading();
     if (result.ok) {
-      user = {
-        ...result.user,
-        googleToken: session.googleToken || '',
-        googleName: session.googleName || result.user.name,
-        picture: session.picture || '',
-        googleEmail: session.email,
-        email: session.email
-      };
+      user = {...result.user,googleToken:session.googleToken||'',googleName:session.googleName||result.user.name,picture:session.picture||'',googleEmail:session.email,email:session.email};
+      // Cập nhật savedAt để lần sau dùng cache
+      session.userObj=user; session.savedAt=Date.now();
+      localStorage.setItem('bc_session',JSON.stringify(session));
       await enterApp();
     } else {
       localStorage.removeItem('bc_session');
