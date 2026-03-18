@@ -1508,14 +1508,7 @@ function openBulkModal(type) {
     ? 'Danh sách khách hàng (mỗi dòng 1 tên)'
     : 'Danh sách biển số xe (mỗi dòng 1 xe, VD: 51G-12345 (Bán tải))';
   document.getElementById('bulk-input').placeholder = isCus
-    ? 'Công ty TNHH ABC
-Công ty CP XYZ
-Anh Hùng - Bình Dương
-...'
-    : '51G-12345 (Bán tải)
-51B-67890 (Tải nhỏ)
-79C-11111 (2T)
-...';
+    ? 'Công ty TNHH ABC Công ty CP XYZ Anh Hùng - Bình Dương ...': '51G-12345 (Bán tải) 51B-67890 (Tải nhỏ) 79C-11111 (2T)...';
   document.getElementById('bulk-input').value = '';
   document.getElementById('bulk-preview').textContent = '';
   document.getElementById('bulk-err').classList.add('hidden');
