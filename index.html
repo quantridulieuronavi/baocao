@@ -224,18 +224,19 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;heigh
 /* MOBILE */
 @media(max-width:640px){
   .sidebar{display:none}
-  .main{padding:14px}
+  .main{padding:14px 14px 14px 66px}
   .g2,.g3,.g4{grid-template-columns:1fr}
   .dg{grid-template-columns:120px 1fr}
   .t-user,.t-av{display:none}
   .mob-nb{display:flex}
 }
-@media(min-width:641px){.mob-nb{display:none!important}}
-.mob-nb{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--g200);z-index:200;padding:4px 0 env(safe-area-inset-bottom,4px)}
-.mob-inner{display:flex;overflow-x:auto}
-.mob-btn{flex-shrink:0;min-width:60px;display:flex;flex-direction:column;align-items:center;gap:2px;padding:7px 10px;background:none;border:none;color:var(--g400);font-size:10px;font-weight:500}
-.mob-btn.active{color:var(--blue)}
-.mob-icon{font-size:17px;line-height:1}
+@media(min-width:641px){.mob-nb{display:none!important;width:0}}
+.mob-nb{position:fixed;top:54px;left:0;bottom:0;width:52px;background:#fff;border-right:1px solid var(--g200);z-index:200;padding:8px 0;display:flex;flex-direction:column}
+.mob-inner{display:flex;flex-direction:column;gap:2px;overflow-y:auto}
+.mob-btn{width:52px;display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 4px;background:none;border:none;border-left:2px solid transparent;color:var(--g400);font-size:9px;font-weight:500;flex-shrink:0}
+.mob-btn.active{color:var(--blue);border-left-color:var(--blue);background:var(--bluel)}
+.mob-btn:hover{background:var(--g100)}
+.mob-icon{font-size:18px;line-height:1}
 
 /* ═══════════════════════════════════════
    PRINT STYLES
@@ -344,6 +345,31 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;heigh
   <div class="mfoot">
     <button class="btn-s" onclick="closeModal('bulk-modal')">Huỷ</button>
     <button class="btn-p" onclick="saveBulk()">Thêm tất cả</button>
+  </div>
+</div>
+</div>
+
+<!-- ═══════ MODAL: CHỈNH SỬA BÁO CÁO ═══════ -->
+<div id="edit-modal" class="moverlay hidden">
+<div class="mbox" style="max-width:680px">
+  <div class="mhead">
+    <span class="mtitle" id="edit-modal-title">Chỉnh sửa báo cáo</span>
+    <button class="mclose" onclick="closeModal('edit-modal')">×</button>
+  </div>
+  <div class="mbody">
+    <div style="background:var(--amberl);border:1px solid #f59e0b;border-radius:var(--rsm);padding:10px 14px;font-size:13px;color:var(--amber);margin-bottom:16px">
+      ⚠️ Lịch sử chỉnh sửa sẽ được ghi lại trong báo cáo.
+    </div>
+    <div id="edit-form-content"></div>
+    <div class="fg" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--g200)">
+      <label class="fl">Lý do chỉnh sửa <span class="req">*</span></label>
+      <textarea id="edit-reason" placeholder="Vui lòng ghi rõ lý do chỉnh sửa báo cáo..." style="min-height:70px"></textarea>
+    </div>
+    <div id="edit-err" class="hidden" style="font-size:12px;color:var(--red);margin-top:6px"></div>
+  </div>
+  <div class="mfoot">
+    <button class="btn-s" onclick="closeModal('edit-modal')">Huỷ</button>
+    <button class="btn-p" onclick="saveEdit()">Lưu chỉnh sửa</button>
   </div>
 </div>
 </div>
@@ -687,12 +713,17 @@ function renderSubmitNT(){
       <div class="g3">
         <div class="fg"><label class="fl">Chức vụ</label><input class="ro" readonly value="${user.pos}"></div>
         <div class="fg"><label class="fl">Ngày báo cáo</label><input type="date" id="nt-ngay" value="${todayISO()}"></div>
-        <div class="fg"><label class="fl">Người giao việc</label><input class="ro" readonly value="${mgr}" id="nt-mgr"></div>
+        <div class="fg"><label class="fl">Người giao việc</label>
+          <select id="nt-mgr">
+            <option value="">-- Tự thực hiện (không có người giao) --</option>
+            ${EMP.filter(e=>e.level==='ql').map(e=>`<option value="${e.name}" ${e.dept==='Nội Thất'?'selected':''}>${e.name} (${e.dept})</option>`).join('')}
+          </select>
+        </div>
       </div>
     </div>
     <div class="card"><div class="card-title">🏗️ Thông tin công việc</div>
       <div class="g2">
-        <div class="fg"><label class="fl">Khách hàng <span class="req">*</span></label><input type="text" id="nt-kh" placeholder="Tên khách hàng..."></div>
+        <div class="fg"><label class="fl">Khách hàng</label><input type="text" id="nt-kh" placeholder="Tên khách hàng..."></div>
         <div class="fg"><label class="fl">Mã công trình</label><input type="text" id="nt-mact" placeholder="CT-2025-001"></div>
       </div>
       <div class="fg"><label class="fl">Nội dung công việc <span class="req">*</span></label><textarea id="nt-ndcv" placeholder="Mô tả chi tiết công việc đã thực hiện..."></textarea></div>
@@ -730,7 +761,7 @@ async function submitNT(){
   const ndcv=document.getElementById('nt-ndcv')?.value.trim();
   const tgbd=document.getElementById('nt-tgbd')?.value;
   const tgkt=document.getElementById('nt-tgkt')?.value;
-  if(!kh||!ndcv||!tgbd||!tgkt){alert('Vui lòng điền: Khách hàng, Nội dung, Giờ bắt đầu/kết thúc.');return}
+  if(!ndcv||!tgbd||!tgkt){alert('Vui lòng điền: Nội dung công việc, Giờ bắt đầu/kết thúc.');return}
   const mins=calcMins(tgbd,tgkt);
   if(mins<=0){alert('Thời gian kết thúc phải sau bắt đầu.');return}
   const reportNT={
@@ -742,7 +773,7 @@ async function submitNT(){
     noiDen:document.getElementById('nt-nd')?.value.trim()||'',
     kmDi:parseFloat(document.getElementById('nt-km')?.value)||0,
     tgBD:tgbd,tgKT:tgkt,tgThucHien:mins,
-    nguoiGiaoViec:getMgr('Nội Thất'),
+    nguoiGiaoViec:document.getElementById('nt-mgr')?.value||'',
     ghiChuPS:document.getElementById('nt-gcps')?.value.trim()||''
   };
   showLoading('Đang nộp báo cáo...');
@@ -775,15 +806,34 @@ function renderSubmitVT(){
       <div class="g3">
         <div class="fg"><label class="fl">Chức vụ</label><input class="ro" readonly value="${user.pos}"></div>
         <div class="fg"><label class="fl">Ngày báo cáo</label><input type="date" id="vt-ngay" value="${todayISO()}"></div>
-        <div class="fg"><label class="fl">Người giao việc</label><input class="ro" readonly value="${mgr}" id="vt-mgr"></div>
+        <div class="fg"><label class="fl">Người giao việc</label>
+          <select id="vt-mgr">
+            <option value="">-- Tự thực hiện (không có người giao) --</option>
+            ${EMP.filter(e=>e.level==='ql').map(e=>`<option value="${e.name}" ${e.dept==='Vận Tải'?'selected':''}>${e.name} (${e.dept})</option>`).join('')}
+          </select>
+        </div>
       </div>
     </div>
     <div class="card"><div class="card-title">🚛 Thông tin chuyến hàng</div>
       <div class="g2">
         <div class="fg"><label class="fl">Tên người thực hiện <span class="req">*</span></label><input type="text" id="vt-nth" value="${user.name}"></div>
-        <div class="fg"><label class="fl">Khách hàng <span class="req">*</span></label><select id="vt-kh"><option value="">-- Chọn khách hàng --</option>${khOpts}</select></div>
+        <div class="fg"><label class="fl">Khách hàng</label>
+        <select id="vt-kh" onchange="handleVtKhChange(this)">
+          <option value="">-- Chọn khách hàng --</option>
+          ${khOpts}
+          <option value="__other__">✏️ Nhập khách hàng khác...</option>
+        </select>
+        <input type="text" id="vt-kh-other" placeholder="Nhập tên khách hàng mới..." style="margin-top:6px;display:none">
       </div>
-      <div class="fg"><label class="fl">Nội dung công việc <span class="req">*</span></label><textarea id="vt-ndcv" placeholder="Mô tả nội dung vận chuyển..."></textarea></div>
+      </div>
+      <div class="fg"><label class="fl">Nội dung công việc</label>
+        <div style="display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap">
+          <button type="button" class="btn-s" style="padding:4px 12px;font-size:12px" onclick="document.getElementById('vt-ndcv').value='Giao hàng'">Giao hàng</button>
+          <button type="button" class="btn-s" style="padding:4px 12px;font-size:12px" onclick="document.getElementById('vt-ndcv').value='Lấy hàng'">Lấy hàng</button>
+          <button type="button" class="btn-s" style="padding:4px 12px;font-size:12px" onclick="document.getElementById('vt-ndcv').value='Giao và lấy hàng'">Giao và lấy hàng</button>
+        </div>
+        <textarea id="vt-ndcv" placeholder="Mô tả nội dung vận chuyển... (hoặc chọn nhanh bên trên)"></textarea>
+      </div>
       <div class="g2">
         <div class="fg"><label class="fl">Số chứng từ</label><input type="text" id="vt-sct" placeholder="VT-2025-001"></div>
         <div class="fg"><label class="fl">Số KM</label><input type="number" id="vt-km" placeholder="0" min="0" step="0.1"></div>
@@ -821,6 +871,12 @@ function renderSubmitVT(){
   calcVT();
 }
 
+function handleVtKhChange(sel){
+  const other=document.getElementById('vt-kh-other');
+  if(sel.value==='__other__'){other.style.display='block';other.focus();}
+  else{other.style.display='none';other.value='';}
+}
+
 function calcVT(){
   const m=calcMins(document.getElementById('vt-tgbd')?.value,document.getElementById('vt-tgkt')?.value);
   const el=document.getElementById('vt-tgth');if(el)el.textContent=fmtMins(m);
@@ -828,14 +884,14 @@ function calcVT(){
 
 async function submitVT(){
   const nth=document.getElementById('vt-nth')?.value.trim();
-  const kh=document.getElementById('vt-kh')?.value;
+  const khSel=document.getElementById('vt-kh')?.value; const kh=khSel==='__other__'?(document.getElementById('vt-kh-other')?.value.trim()||''):khSel;
   const ndcv=document.getElementById('vt-ndcv')?.value.trim();
   const ndi=document.getElementById('vt-ndi')?.value.trim();
   const nden=document.getElementById('vt-nden')?.value.trim();
   const bs=document.getElementById('vt-bienso')?.value;
   const tgbd=document.getElementById('vt-tgbd')?.value;
   const tgkt=document.getElementById('vt-tgkt')?.value;
-  if(!nth||!kh||!ndcv||!ndi||!nden||!bs||!tgbd||!tgkt){alert('Vui lòng điền đầy đủ các trường bắt buộc (*).');return}
+  if(!nth||!ndi||!nden||!bs||!tgbd||!tgkt){alert('Vui lòng điền: Người thực hiện, Nơi đi, Nơi đến, Biển số xe, Thời gian.');return}
   const mins=calcMins(tgbd,tgkt);
   if(mins<=0){alert('Thời gian kết thúc phải sau bắt đầu.');return}
   const reportVT={
@@ -848,7 +904,7 @@ async function submitVT(){
     taiNho:document.getElementById('vt-tainho')?.checked||false,
     haiTan:document.getElementById('vt-2t')?.checked||false,
     bienSo:bs,tgBD:tgbd,tgKT:tgkt,tgThucHien:mins,
-    nguoiGiaoViec:getMgr('Vận Tải'),
+    nguoiGiaoViec:document.getElementById('vt-mgr')?.value||'',
     ghiChuPS:document.getElementById('vt-gcps')?.value.trim()||''
   };
   showLoading('Đang nộp báo cáo...');
@@ -894,6 +950,7 @@ function renderNTCard(r,canEval){
       ${r.ghiChuPS?`<div class="dg-l">Ghi chú phát sinh</div><div class="dg-v" style="color:var(--amber)">${r.ghiChuPS}</div>`:''}
     </div>
     ${renderEval(r,'nt',canEval)}
+    ${(!canEval&&r.email===user?.email)?`<div style="margin-top:10px;padding-top:10px;border-top:0.5px solid var(--g200)"><button class="btn-e" onclick="openEditModal('nt',${r.id})">✏️ Chỉnh sửa báo cáo</button></div>`:''}
   </div>`;
 }
 
@@ -928,6 +985,7 @@ function renderVTCard(r,canEval){
       ${r.ghiChuPS?`<div class="dg-l">Ghi chú phát sinh</div><div class="dg-v" style="color:var(--amber)">${r.ghiChuPS}</div>`:''}
     </div>
     ${renderEval(r,'vt',canEval)}
+    ${(!canEval&&r.email===user?.email)?`<div style="margin-top:10px;padding-top:10px;border-top:0.5px solid var(--g200)"><button class="btn-e" onclick="openEditModal('vt',${r.id})">✏️ Chỉnh sửa báo cáo</button></div>`:''}
   </div>`;
 }
 
@@ -1337,6 +1395,171 @@ async function saveBulk(){
     let msg='✓ Đã thêm '+newItems.length+' mục thành công!';
     if(dupCount>0)msg+=' ('+dupCount+' mục trùng đã bỏ qua)';
     alert(msg);
+  }catch(e){showE(errEl,'Lỗi: '+e.message);}
+  hideLoading();
+}
+
+
+/* ════ CHỈNH SỬA BÁO CÁO ════ */
+let editTarget=null;
+
+function openEditModal(type, id){
+  const list=type==='nt'?RPT_NT:RPT_VT;
+  const r=list.find(x=>x.id===id);
+  if(!r)return;
+  editTarget={type,id};
+  document.getElementById('edit-modal-title').textContent='Chỉnh sửa báo cáo — '+(type==='nt'?'Nội Thất':'Vận Tải');
+  document.getElementById('edit-reason').value='';
+  document.getElementById('edit-err').classList.add('hidden');
+
+  const mgrOpts=EMP.filter(e=>e.level==='ql').map(e=>`<option value="${e.name}" ${e.name===r.nguoiGiaoViec?'selected':''}>${e.name} (${e.dept})</option>`).join('');
+  const khOptsCust=CUST.map(c=>`<option value="${c}" ${c===r.khachHang?'selected':''}>${c}</option>`).join('');
+
+  let formHtml='';
+  if(type==='nt'){
+    formHtml=`
+      <div class="g2">
+        <div class="fg"><label class="fl">Khách hàng</label><input type="text" id="ed-kh" value="${r.khachHang||''}"></div>
+        <div class="fg"><label class="fl">Mã công trình</label><input type="text" id="ed-mact" value="${r.maCT||''}"></div>
+      </div>
+      <div class="fg"><label class="fl">Nội dung công việc</label><textarea id="ed-ndcv">${r.ndCongViec||''}</textarea></div>
+      <div class="g2">
+        <div class="fg"><label class="fl">Nơi làm việc</label><input type="text" id="ed-nlv" value="${r.noiLamViec||''}"></div>
+        <div class="fg"><label class="fl">Nơi đến</label><input type="text" id="ed-nd" value="${r.noiDen||''}"></div>
+      </div>
+      <div class="g3" style="align-items:end">
+        <div class="fg"><label class="fl">KM đi</label><input type="number" id="ed-km" value="${r.kmDi||0}" min="0" step="0.1"></div>
+        <div class="fg"><label class="fl">Bắt đầu</label><input type="time" id="ed-tgbd" value="${r.tgBD||''}" oninput="calcEdit()"></div>
+        <div class="fg"><label class="fl">Kết thúc</label><input type="time" id="ed-tgkt" value="${r.tgKT||''}" oninput="calcEdit()"></div>
+      </div>
+      <div class="fg"><label class="fl">Ghi chú phát sinh</label><textarea id="ed-gcps" style="min-height:60px">${r.ghiChuPS||''}</textarea></div>
+      <div class="fg"><label class="fl">Người giao việc</label>
+        <select id="ed-mgr"><option value="">-- Tự thực hiện --</option>${mgrOpts}</select>
+      </div>`;
+  } else {
+    const isOther=r.khachHang&&!CUST.includes(r.khachHang);
+    formHtml=`
+      <div class="g2">
+        <div class="fg"><label class="fl">Người thực hiện</label><input type="text" id="ed-nth" value="${r.tenNguoiTH||''}"></div>
+        <div class="fg"><label class="fl">Khách hàng</label>
+          <select id="ed-kh" onchange="handleEdKhChange(this)">
+            <option value="">-- Chọn --</option>${khOptsCust}
+            <option value="__other__" ${isOther?'selected':''}>✏️ Nhập khác...</option>
+          </select>
+          <input type="text" id="ed-kh-other" value="${isOther?r.khachHang:''}" placeholder="Tên khách hàng..." style="margin-top:6px;display:${isOther?'block':'none'}">
+        </div>
+      </div>
+      <div class="fg"><label class="fl">Nội dung công việc</label>
+        <div style="display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap">
+          <button type="button" class="btn-s" style="padding:4px 12px;font-size:12px" onclick="document.getElementById('ed-ndcv').value='Giao hàng'">Giao hàng</button>
+          <button type="button" class="btn-s" style="padding:4px 12px;font-size:12px" onclick="document.getElementById('ed-ndcv').value='Lấy hàng'">Lấy hàng</button>
+          <button type="button" class="btn-s" style="padding:4px 12px;font-size:12px" onclick="document.getElementById('ed-ndcv').value='Giao và lấy hàng'">Giao và lấy hàng</button>
+        </div>
+        <textarea id="ed-ndcv">${r.ndCongViec||''}</textarea>
+      </div>
+      <div class="fg"><label class="fl">Số chứng từ</label><input type="text" id="ed-sct" value="${r.soChungTu||''}"></div>
+      <div class="g2">
+        <div class="fg"><label class="fl">Nơi đi</label><input type="text" id="ed-ndi" value="${r.noiDi||''}"></div>
+        <div class="fg"><label class="fl">Nơi đến</label><input type="text" id="ed-nden" value="${r.noiDen||''}"></div>
+      </div>
+      <div class="fg"><label class="fl">Số KM</label><input type="number" id="ed-km" value="${r.soKM||0}" min="0" step="0.1"></div>
+      <div class="fg"><label class="fl">Loại xe</label>
+        <div class="check-group">
+          <label class="ci"><input type="checkbox" id="ed-bantai" ${r.banTai?'checked':''}> Bán tải</label>
+          <label class="ci"><input type="checkbox" id="ed-tainho" ${r.taiNho?'checked':''}> Tải nhỏ</label>
+          <label class="ci"><input type="checkbox" id="ed-2t" ${r.haiTan?'checked':''}> 2T</label>
+        </div>
+      </div>
+      <div class="fg"><label class="fl">Biển số xe</label>
+        <select id="ed-bienso">${VEH.map(v=>`<option value="${v}" ${v===r.bienSo?'selected':''}>${v}</option>`).join('')}</select>
+      </div>
+      <div class="g3" style="align-items:end">
+        <div class="fg"><label class="fl">Bắt đầu</label><input type="time" id="ed-tgbd" value="${r.tgBD||''}" oninput="calcEdit()"></div>
+        <div class="fg"><label class="fl">Kết thúc</label><input type="time" id="ed-tgkt" value="${r.tgKT||''}" oninput="calcEdit()"></div>
+        <div class="fg"><label class="fl">Thời gian thực hiện</label><div class="time-calc" id="ed-tgth">${r.tgThucHien||0} phút</div></div>
+      </div>
+      <div class="fg"><label class="fl">Ghi chú phát sinh</label><textarea id="ed-gcps" style="min-height:60px">${r.ghiChuPS||''}</textarea></div>
+      <div class="fg"><label class="fl">Người giao việc</label>
+        <select id="ed-mgr"><option value="">-- Tự thực hiện --</option>${mgrOpts}</select>
+      </div>`;
+  }
+  document.getElementById('edit-form-content').innerHTML=formHtml;
+  document.getElementById('edit-modal').classList.remove('hidden');
+}
+
+function handleEdKhChange(sel){
+  const other=document.getElementById('ed-kh-other');
+  if(sel.value==='__other__'){other.style.display='block';other.focus();}
+  else{other.style.display='none';other.value='';}
+}
+
+function calcEdit(){
+  const s=document.getElementById('ed-tgbd')?.value;
+  const e=document.getElementById('ed-tgkt')?.value;
+  const el=document.getElementById('ed-tgth');
+  if(el){const m=calcMins(s,e);el.textContent=(m>0?m:0)+' phút';}
+}
+
+async function saveEdit(){
+  if(!editTarget)return;
+  const reason=document.getElementById('edit-reason').value.trim();
+  const errEl=document.getElementById('edit-err');
+  if(!reason){showE(errEl,'Vui lòng nhập lý do chỉnh sửa.');return;}
+
+  const type=editTarget.type;
+  const list=type==='nt'?RPT_NT:RPT_VT;
+  const r=list.find(x=>x.id===editTarget.id);
+  if(!r)return;
+
+  let updatedData={id:r.id, lyDoSua:reason};
+
+  if(type==='nt'){
+    updatedData={...updatedData,
+      khachHang:document.getElementById('ed-kh')?.value.trim()||'',
+      maCT:document.getElementById('ed-mact')?.value.trim()||'',
+      ndCongViec:document.getElementById('ed-ndcv')?.value.trim()||'',
+      noiLamViec:document.getElementById('ed-nlv')?.value.trim()||'',
+      noiDen:document.getElementById('ed-nd')?.value.trim()||'',
+      kmDi:parseFloat(document.getElementById('ed-km')?.value)||0,
+      tgBD:document.getElementById('ed-tgbd')?.value||'',
+      tgKT:document.getElementById('ed-tgkt')?.value||'',
+      tgThucHien:calcMins(document.getElementById('ed-tgbd')?.value,document.getElementById('ed-tgkt')?.value),
+      ghiChuPS:document.getElementById('ed-gcps')?.value.trim()||'',
+      nguoiGiaoViec:document.getElementById('ed-mgr')?.value||'',
+    };
+  } else {
+    const khSel=document.getElementById('ed-kh')?.value;
+    const kh=khSel==='__other__'?(document.getElementById('ed-kh-other')?.value.trim()||''):khSel;
+    updatedData={...updatedData,
+      tenNguoiTH:document.getElementById('ed-nth')?.value.trim()||'',
+      khachHang:kh,
+      ndCongViec:document.getElementById('ed-ndcv')?.value.trim()||'',
+      soChungTu:document.getElementById('ed-sct')?.value.trim()||'',
+      noiDi:document.getElementById('ed-ndi')?.value.trim()||'',
+      noiDen:document.getElementById('ed-nden')?.value.trim()||'',
+      soKM:parseFloat(document.getElementById('ed-km')?.value)||0,
+      banTai:document.getElementById('ed-bantai')?.checked||false,
+      taiNho:document.getElementById('ed-tainho')?.checked||false,
+      haiTan:document.getElementById('ed-2t')?.checked||false,
+      bienSo:document.getElementById('ed-bienso')?.value||'',
+      tgBD:document.getElementById('ed-tgbd')?.value||'',
+      tgKT:document.getElementById('ed-tgkt')?.value||'',
+      tgThucHien:calcMins(document.getElementById('ed-tgbd')?.value,document.getElementById('ed-tgkt')?.value),
+      ghiChuPS:document.getElementById('ed-gcps')?.value.trim()||'',
+      nguoiGiaoViec:document.getElementById('ed-mgr')?.value||'',
+    };
+  }
+
+  showLoading('Đang lưu chỉnh sửa...');
+  try{
+    const action=type==='nt'?'EDIT_REPORT_NT':'EDIT_REPORT_VT';
+    await api(action, updatedData);
+    // Cập nhật local cache
+    Object.assign(r, updatedData);
+    await loadReports();
+    closeModal('edit-modal');
+    renderMine();renderDept();renderAllRpts();
+    alert('✓ Đã lưu chỉnh sửa thành công!');
   }catch(e){showE(errEl,'Lỗi: '+e.message);}
   hideLoading();
 }
